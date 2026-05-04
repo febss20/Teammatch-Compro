@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TeamMatch — Cari Teman Lomba Kampus 🏆
+
+Platform kolaborasi mahasiswa untuk menemukan rekan tim dan memenangkan berbagai kompetisi tingkat nasional maupun internasional.
+
+## Tech Stack
+
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router + Turbopack)
+- **Language:** TypeScript (strict mode)
+- **Styling:** Tailwind CSS v4
+- **Font:** Inter (via `next/font/google`)
+- **API:** Unsplash API (public photo fetching)
+- **Linting:** ESLint + Prettier
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/febss20/Teammatch-Compro.git
+cd Teammatch-Compro
+npm install
+```
+
+### 2. Environment Variables
+
+Buat file `.env.local` di root project:
+
+```bash
+UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+> Dapatkan Unsplash Access Key gratis di [unsplash.com/developers](https://unsplash.com/developers).
+
+### 3. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Feature | Implementation |
+|---------|---------------|
+| App Router | `app/` directory with layouts, pages, dynamic routes |
+| Server Component | Services page fetches from Unsplash API |
+| Client Component | Navbar (mobile toggle), ContactForm (form state) |
+| Data Fetching | `await fetch()` in Server Component + ISR (1 hour) |
+| Route Handler | `GET /api/photos`, `POST /api/contact` |
+| Dynamic Route | `/services/[id]` with `generateStaticParams` |
+| Image Optimization | `next/image` with Unsplash `remotePatterns` |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format code with Prettier |
