@@ -56,18 +56,17 @@ export default function Gallery({
     };
 
     return (
-        <section className="relative">
-            {/* Filter Buttons */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
-                <div className="flex flex-wrap justify-center md:justify-start gap-3">
+        <section className="relative space-y-6">
+            <div className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-5 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="flex flex-wrap gap-3">
                     {categories.map((category) => (
                         <button
                             key={category}
                             onClick={() => handleCategoryChange(category)}
-                            className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                            className={`display-font rounded-full border-[3px] px-4 py-3 text-lg uppercase ${
                                 activeCategory === category
-                                    ? "bg-primary text-white"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    ? "border-[var(--tm-line)] bg-[var(--tm-accent)] text-[var(--tm-line)] shadow-[4px_4px_0_var(--tm-line)]"
+                                    : "border-[var(--tm-line)] bg-[var(--tm-paper-strong)] text-[var(--tm-line)]"
                             }`}
                         >
                             {category}
@@ -75,25 +74,24 @@ export default function Gallery({
                     ))}
                 </div>
 
-                {/* Search Bar */}
                 {showSearch && (
-                    <form onSubmit={handleSearch} className="w-full md:w-auto relative">
+                    <form onSubmit={handleSearch} className="relative w-full md:w-[22rem]">
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Cari foto kompetisi..."
-                            className="w-full md:w-72 px-5 py-2.5 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary pr-12 text-sm transition-all"
+                            placeholder="Cari foto kompetisi"
+                            className="brutal-input !pr-14"
                         />
                         <button
                             type="submit"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-primary transition-colors"
+                            className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-2)] shadow-[3px_3px_0_var(--tm-line)]"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    strokeWidth={2}
+                                    strokeWidth={2.5}
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                                 />
                             </svg>
@@ -102,80 +100,86 @@ export default function Gallery({
                 )}
             </div>
 
-            {/* Photo Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {isLoading
                     ? Array.from({ length: 9 }).map((_, i) => (
-                          <div key={`skeleton-${i}`} className="aspect-[4/3] bg-gray-200 animate-pulse rounded-2xl" />
+                          <div
+                              key={`skeleton-${i}`}
+                              className="brutal-panel aspect-[4/3] animate-poster bg-[var(--tm-paper-muted)]"
+                          />
                       ))
                     : photos.map((photo, i) => (
-                          <div
+                          <button
                               key={photo.id}
                               onClick={() => setSelectedPhoto(photo)}
-                              className="relative aspect-[4/3] overflow-hidden rounded-2xl cursor-pointer group shadow-sm hover:shadow-lg transition-shadow"
-                              style={{ backgroundColor: photo.color || "#e5e5e5" }}
+                              className="brutal-panel group relative aspect-[4/3] overflow-hidden bg-[var(--tm-paper-muted)] text-left animate-rise"
+                              style={{ animationDelay: `${i * 80}ms` }}
                           >
                               <Image
                                   src={photo.thumb}
                                   alt={photo.alt}
                                   fill
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                  className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
                                   priority={i < 4}
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5">
-                                  <div className="text-white">
-                                      <p className="font-semibold">{photo.location || "Competition"}</p>
-                                      <p className="text-sm text-white/70">📸 {photo.photographer}</p>
-                                  </div>
+                              <div className="absolute inset-x-0 bottom-0 border-t-[3px] border-[var(--tm-line)] bg-[rgba(255,249,239,0.92)] p-4">
+                                  <p className="display-font text-2xl leading-none text-[var(--tm-line)]">
+                                      {photo.location || "Competition Moment"}
+                                  </p>
+                                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--tm-muted)]">
+                                      {photo.photographer}
+                                  </p>
                               </div>
-                          </div>
+                          </button>
                       ))}
             </div>
 
-            {/* Lightbox Modal */}
             {selectedPhoto && (
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(19,19,19,0.92)] p-4"
                     onClick={() => setSelectedPhoto(null)}
                 >
                     <button
-                        className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors"
+                        className="absolute right-6 top-6 inline-flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent)] text-[var(--tm-line)] shadow-[4px_4px_0_#fff9ef]"
                         onClick={() => setSelectedPhoto(null)}
                     >
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
 
                     <div
-                        className="relative max-w-5xl w-full max-h-[80vh] bg-gray-900 rounded-lg overflow-hidden flex flex-col"
+                        className="w-full max-w-6xl overflow-hidden rounded-[24px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-paper-strong)] shadow-[10px_10px_0_#fff9ef]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="relative flex-1 min-h-0 bg-black flex items-center justify-center">
+                        <div className="relative flex min-h-[28rem] items-center justify-center bg-[var(--tm-line)]">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={selectedPhoto.url}
                                 alt={selectedPhoto.alt}
-                                className="max-w-full max-h-[70vh] object-contain"
+                                className="max-h-[70vh] max-w-full object-contain"
                             />
                         </div>
-                        <div className="p-6 bg-gray-900 text-white flex justify-between items-center">
+                        <div className="grid gap-3 border-t-[3px] border-[var(--tm-line)] p-6 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <h3 className="text-xl font-bold mb-1">{selectedPhoto.location || selectedPhoto.alt}</h3>
-                                <p className="text-gray-400">
+                                <h3 className="display-font text-4xl leading-none text-[var(--tm-line)]">
+                                    {selectedPhoto.location || selectedPhoto.alt}
+                                </h3>
+                                <p className="mt-3 text-sm leading-7 text-[var(--tm-muted)]">
                                     Photo by{" "}
                                     <a
                                         href={`${selectedPhoto.photographerUrl}?utm_source=teammatch_compro&utm_medium=referral`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="underline hover:text-gray-200"
+                                        className="font-semibold underline"
                                     >
                                         {selectedPhoto.photographer}
                                     </a>{" "}
                                     on Unsplash
                                 </p>
                             </div>
+                            <div className="section-kicker">Gallery Focus</div>
                         </div>
                     </div>
                 </div>

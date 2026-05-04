@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COMPETITIONS } from "@/lib/data";
 import Image from "next/image";
+import { COMPETITIONS } from "@/lib/data";
 
 export const metadata: Metadata = {
     title: "Kategori Lomba | TeamMatch",
@@ -10,42 +10,48 @@ export const metadata: Metadata = {
 
 export default async function ServicesPage() {
     return (
-        <div className="py-16 bg-white">
-            <div className="max-w-7xl mx-auto px-4">
-                <div className="text-center mb-16">
-                    <h1 className="text-4xl font-bold text-gray-900">Kategori Lomba</h1>
-                    <p className="text-gray-500 mt-4">Pilih kategori kompetisi yang sesuai dengan minat Anda.</p>
+        <div className="px-4 py-12 md:py-16">
+            <div className="page-frame space-y-8">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="space-y-4">
+                        <div className="section-kicker">Competition Categories</div>
+                        <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">PILIH ARENA YANG TEPAT</h1>
+                    </div>
+                    <p className="max-w-xl text-lg leading-8 text-[var(--tm-muted)]">
+                        Setiap kategori punya ritme, skill, dan pola kolaborasi yang berbeda. TeamMatch menempatkannya seperti
+                        dossier, bukan kartu promosi biasa.
+                    </p>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-8 mb-20">
-                    {COMPETITIONS.map((item) => (
-                        <div
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {COMPETITIONS.map((item, index) => (
+                        <article
                             key={item.id}
-                            className="group border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg transition-all"
+                            className="brutal-panel lift-card overflow-hidden bg-[var(--tm-paper-strong)] animate-rise"
+                            style={{ animationDelay: `${index * 90}ms` }}
                         >
-                            <div className="h-48 bg-gray-200 relative overflow-hidden">
+                            <div className="relative h-56 border-b-[3px] border-[var(--tm-line)] bg-[var(--tm-paper-muted)]">
                                 <Image
                                     src={item.image}
                                     alt={item.title}
                                     fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                    className="object-cover"
                                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 />
+                                <div className="absolute left-4 top-4 rotate-[-3deg] border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-2)] px-3 py-2 display-font text-2xl leading-none">
+                                    Category
+                                </div>
                             </div>
-                            <div className="p-6">
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h3>
-                                <p className="text-gray-600 mb-6 line-clamp-2">{item.description}</p>
-                                <Link
-                                    href={`/services/${item.id}`}
-                                    className="text-secondary font-semibold hover:text-secondary-dark inline-flex items-center"
-                                >
+                            <div className="grid gap-5 p-6">
+                                <div>
+                                    <h2 className="display-font text-4xl leading-none text-[var(--tm-line)]">{item.title}</h2>
+                                    <p className="mt-4 text-base leading-7 text-[var(--tm-muted)]">{item.description}</p>
+                                </div>
+                                <Link href={`/services/${item.id}`} className="brutal-button w-full">
                                     Lihat Detail
-                                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
                                 </Link>
                             </div>
-                        </div>
+                        </article>
                     ))}
                 </div>
             </div>

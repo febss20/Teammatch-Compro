@@ -58,185 +58,183 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
     const [state, formAction, pending] = useActionState(updateCompetitionIdeaBoard, competitionIdeaBoardInitialState);
 
     return (
-        <form
-            action={formAction}
-            className="space-y-8 rounded-[2rem] border border-white/70 bg-white/92 p-8 shadow-[0_35px_120px_rgba(6,182,212,0.18)] backdrop-blur md:p-10"
-        >
-            <input type="hidden" name="id" value={board.id} />
-            <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
+        <form action={formAction} className="brutal-stack">
+            <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
+                <input type="hidden" name="id" value={board.id} />
+                <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
-            <div className="space-y-3">
-                <div className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">
-                    Edit Board
-                </div>
-                <h2 className="text-3xl font-black tracking-tight text-gray-900 md:text-4xl">
-                    Perbarui detail board agar tetap relevan untuk calon rekan tim.
-                </h2>
-                <p className="max-w-2xl text-base leading-7 text-gray-600">
-                    Gunakan halaman ini untuk memperjelas ide, mengganti status board, atau menyesuaikan kebutuhan skill sesuai
-                    progres kompetisi Anda.
-                </p>
-            </div>
-
-            {state.formError && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-                    {state.formError}
-                </div>
-            )}
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                    <label htmlFor="title" className="text-sm font-semibold text-gray-800">
-                        Judul Ide Lomba
-                    </label>
-                    <input
-                        id="title"
-                        name="title"
-                        type="text"
-                        required
-                        disabled={pending}
-                        defaultValue={board.title}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    />
-                    {getFieldError(state.fieldErrors, "title") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "title")}</p>
-                    )}
+                <div className="space-y-4">
+                    <div className="section-kicker w-fit">Edit Board</div>
+                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">PERBARUI BOARD AGAR TETAP RELEVAN</h2>
+                    <p className="max-w-3xl text-base leading-8 text-[var(--tm-muted)]">
+                        Gunakan halaman ini untuk memperjelas ide, mengganti status board, atau menyesuaikan kebutuhan skill
+                        sesuai progres kompetisi Anda.
+                    </p>
                 </div>
 
-                <div className="space-y-2">
-                    <label htmlFor="competition_type_select" className="text-sm font-semibold text-gray-800">
-                        Jenis Lomba
-                    </label>
-                    <select
-                        id="competition_type_select"
-                        name="competition_type_select"
-                        required
-                        disabled={pending}
-                        value={selectedCompetitionType}
-                        onChange={(event) => setSelectedCompetitionType(event.target.value)}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    >
-                        {competitionTypeOptions.map((option) => (
-                            <option key={option} value={option}>
-                                {competitionTypeLabels[option]}
-                            </option>
-                        ))}
-                    </select>
-                    {getFieldError(state.fieldErrors, "competition_type_select") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "competition_type_select")}</p>
-                    )}
-                </div>
+                {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
 
-                <div className="space-y-2">
-                    <label htmlFor="status" className="text-sm font-semibold text-gray-800">
-                        Status Board
-                    </label>
-                    <select
-                        id="status"
-                        name="status"
-                        required
-                        disabled={pending}
-                        defaultValue={board.status}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    >
-                        {competitionIdeaBoardStatusOptions.map((status) => (
-                            <option key={status} value={status}>
-                                {statusLabels[status]}
-                            </option>
-                        ))}
-                    </select>
-                    {getFieldError(state.fieldErrors, "status") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "status")}</p>
-                    )}
-                </div>
-
-                <div className="space-y-2">
-                    <label htmlFor="deadline" className="text-sm font-semibold text-gray-800">
-                        Deadline Lomba
-                    </label>
-                    <input
-                        id="deadline"
-                        name="deadline"
-                        type="date"
-                        required
-                        disabled={pending}
-                        defaultValue={getDateValue(board.deadline)}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    />
-                    {getFieldError(state.fieldErrors, "deadline") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "deadline")}</p>
-                    )}
-                </div>
-
-                {selectedCompetitionType === "other" && (
-                    <div className="space-y-2 md:col-span-2">
-                        <label htmlFor="competition_type_other" className="text-sm font-semibold text-gray-800">
-                            Jenis Lomba Lainnya
+                <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-2 md:col-span-2">
+                        <label htmlFor="title" className="brutal-label">
+                            Judul Ide Lomba
                         </label>
                         <input
-                            id="competition_type_other"
-                            name="competition_type_other"
+                            id="title"
+                            name="title"
                             type="text"
                             required
                             disabled={pending}
-                            defaultValue={getOtherValue(board.competitionType)}
-                            className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
+                            defaultValue={board.title}
+                            className="brutal-input"
                         />
-                        {getFieldError(state.fieldErrors, "competition_type_other") && (
-                            <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "competition_type_other")}</p>
+                        {getFieldError(state.fieldErrors, "title") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "title")}</p>
                         )}
                     </div>
-                )}
 
-                <div className="space-y-2 md:col-span-2">
-                    <label htmlFor="description" className="text-sm font-semibold text-gray-800">
-                        Deskripsi Ide
-                    </label>
-                    <textarea
-                        id="description"
-                        name="description"
-                        required
-                        rows={6}
-                        disabled={pending}
-                        defaultValue={board.description}
-                        className="w-full rounded-3xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    />
-                    {getFieldError(state.fieldErrors, "description") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "description")}</p>
+                    <div className="grid gap-2">
+                        <label htmlFor="competition_type_select" className="brutal-label">
+                            Jenis Lomba
+                        </label>
+                        <select
+                            id="competition_type_select"
+                            name="competition_type_select"
+                            required
+                            disabled={pending}
+                            value={selectedCompetitionType}
+                            onChange={(event) => setSelectedCompetitionType(event.target.value)}
+                            className="brutal-select"
+                        >
+                            {competitionTypeOptions.map((option) => (
+                                <option key={option} value={option}>
+                                    {competitionTypeLabels[option]}
+                                </option>
+                            ))}
+                        </select>
+                        {getFieldError(state.fieldErrors, "competition_type_select") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "competition_type_select")}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-2">
+                        <label htmlFor="status" className="brutal-label">
+                            Status Board
+                        </label>
+                        <select
+                            id="status"
+                            name="status"
+                            required
+                            disabled={pending}
+                            defaultValue={board.status}
+                            className="brutal-select"
+                        >
+                            {competitionIdeaBoardStatusOptions.map((status) => (
+                                <option key={status} value={status}>
+                                    {statusLabels[status]}
+                                </option>
+                            ))}
+                        </select>
+                        {getFieldError(state.fieldErrors, "status") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "status")}</p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-2">
+                        <label htmlFor="deadline" className="brutal-label">
+                            Deadline Lomba
+                        </label>
+                        <input
+                            id="deadline"
+                            name="deadline"
+                            type="date"
+                            required
+                            disabled={pending}
+                            defaultValue={getDateValue(board.deadline)}
+                            className="brutal-input"
+                        />
+                        {getFieldError(state.fieldErrors, "deadline") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "deadline")}
+                            </p>
+                        )}
+                    </div>
+
+                    {selectedCompetitionType === "other" && (
+                        <div className="grid gap-2 md:col-span-2">
+                            <label htmlFor="competition_type_other" className="brutal-label">
+                                Jenis Lomba Lainnya
+                            </label>
+                            <input
+                                id="competition_type_other"
+                                name="competition_type_other"
+                                type="text"
+                                required
+                                disabled={pending}
+                                defaultValue={getOtherValue(board.competitionType)}
+                                className="brutal-input"
+                            />
+                            {getFieldError(state.fieldErrors, "competition_type_other") && (
+                                <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    {getFieldError(state.fieldErrors, "competition_type_other")}
+                                </p>
+                            )}
+                        </div>
                     )}
+
+                    <div className="grid gap-2 md:col-span-2">
+                        <label htmlFor="description" className="brutal-label">
+                            Deskripsi Ide
+                        </label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            required
+                            rows={6}
+                            disabled={pending}
+                            defaultValue={board.description}
+                            className="brutal-textarea"
+                        />
+                        {getFieldError(state.fieldErrors, "description") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "description")}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                        <label htmlFor="required_skills" className="brutal-label">
+                            Skill yang Dibutuhkan
+                        </label>
+                        <input
+                            id="required_skills"
+                            name="required_skills"
+                            type="text"
+                            required
+                            disabled={pending}
+                            defaultValue={getSkillsValue(board.requiredSkills)}
+                            className="brutal-input"
+                        />
+                        <p className="text-sm leading-7 text-[var(--tm-muted)]">Pisahkan dengan koma. Maksimal 10 skill.</p>
+                        {getFieldError(state.fieldErrors, "required_skills") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "required_skills")}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                    <label htmlFor="required_skills" className="text-sm font-semibold text-gray-800">
-                        Skill yang Dibutuhkan
-                    </label>
-                    <input
-                        id="required_skills"
-                        name="required_skills"
-                        type="text"
-                        required
-                        disabled={pending}
-                        defaultValue={getSkillsValue(board.requiredSkills)}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:bg-gray-100"
-                    />
-                    <p className="text-sm text-gray-500">Pisahkan dengan koma. Maksimal 10 skill.</p>
-                    {getFieldError(state.fieldErrors, "required_skills") && (
-                        <p className="text-sm text-red-600">{getFieldError(state.fieldErrors, "required_skills")}</p>
-                    )}
+                <div className="grid gap-4 border-t-[3px] border-dashed border-[var(--tm-line)] pt-6 md:grid-cols-[1fr_auto] md:items-center">
+                    <p className="max-w-xl text-sm leading-7 text-[var(--tm-muted)]">
+                        Gunakan status open atau closed untuk memberi sinyal jelas apakah board masih menerima kolaborator
+                        baru.
+                    </p>
+                    <button type="submit" disabled={pending} className="brutal-button min-w-[240px]">
+                        {pending ? "Menyimpan Perubahan..." : "Simpan Perubahan"}
+                    </button>
                 </div>
-            </div>
-
-            <div className="flex flex-col items-start gap-4 border-t border-gray-100 pt-6 md:flex-row md:items-center md:justify-between">
-                <p className="max-w-xl text-sm leading-6 text-gray-500">
-                    Gunakan status open atau closed untuk memberi sinyal jelas apakah board masih menerima kolaborator baru.
-                </p>
-                <button
-                    type="submit"
-                    disabled={pending}
-                    className="inline-flex min-w-[170px] items-center justify-center rounded-full bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {pending ? "Menyimpan Perubahan..." : "Simpan Perubahan"}
-                </button>
             </div>
         </form>
     );

@@ -17,12 +17,10 @@ export default function DeleteBoardButton({ id }: DeleteBoardButtonProps) {
                     event.preventDefault();
                 }
             }}
+            className="w-full"
         >
             <input type="hidden" name="id" value={id} />
-            <button
-                type="submit"
-                className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-600 transition-colors hover:border-red-500 hover:text-red-700"
-            >
+            <button type="submit" className="brutal-button-danger w-full">
                 Delete
             </button>
         </form>

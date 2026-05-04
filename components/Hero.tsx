@@ -2,28 +2,76 @@ import Link from "next/link";
 
 export default function Hero() {
     return (
-        <section className="bg-white py-20 px-4">
-            <div className="max-w-7xl mx-auto text-center">
-                <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6">
-                    Bangun Tim <span className="text-primary">Juara</span> Anda di Sini
-                </h1>
-                <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
-                    Temukan rekan mahasiswa satu kampus yang memiliki visi dan skill yang sama untuk memenangkan berbagai
-                    kompetisi tingkat nasional maupun internasional.
-                </p>
-                <div className="flex justify-center gap-4">
-                    <Link
-                        href="/register"
-                        className="bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-full font-medium transition-all"
-                    >
-                        Buat Akun Sekarang
-                    </Link>
-                    <Link
-                        href="/login"
-                        className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-white px-8 py-3 rounded-full font-medium transition-all"
-                    >
-                        Login Dashboard
-                    </Link>
+        <section className="overflow-hidden px-4 pb-16 pt-10 md:pb-24 md:pt-14">
+            <div className="page-frame grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+                <div className="animate-rise space-y-6">
+                    <div className="section-kicker">
+                        <span>Campus Competition Network</span>
+                    </div>
+                    <div className="space-y-5">
+                        <p className="display-font text-[clamp(4rem,11vw,8rem)] leading-[0.9] text-[var(--tm-line)]">
+                            TEMUKAN
+                            <br />
+                            TIM
+                            <span className="ml-3 inline-block -rotate-2 bg-[var(--tm-accent)] px-3 py-1">
+                                LOMBA
+                            </span>
+                            <br />
+                            YANG TAJAM
+                        </p>
+                        <p className="max-w-2xl text-lg leading-8 text-[var(--tm-muted)] md:text-xl">
+                            TeamMatch membantu mahasiswa mempublikasikan ide kompetisi, menyusun kebutuhan skill, lalu
+                            mengubah brief mentah menjadi ruang kerja yang terasa serius sejak hari pertama.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                        <Link href="/register" className="brutal-button min-w-[220px]">
+                            Buat Akun
+                        </Link>
+                        <Link href="/login" className="brutal-button-secondary min-w-[220px]">
+                            Login Dashboard
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="brutal-stack animate-rise [animation-delay:120ms]">
+                    <div className="brutal-panel relative overflow-hidden bg-[var(--tm-paper-strong)] p-6 md:p-8">
+                        <div className="absolute right-5 top-5 rotate-6 border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-2)] px-3 py-2 display-font text-xl leading-none">
+                            OPEN CALL
+                        </div>
+
+                        <div className="grid gap-6">
+                            <div className="rounded-[18px] border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-3)] p-5 text-[var(--tm-paper-strong)]">
+                                <p className="display-font text-2xl uppercase tracking-[0.04em]">Board Demo</p>
+                                <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl">
+                                    Hackathon AI untuk pengalaman belajar kampus yang lebih personal.
+                                </h2>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="brutal-panel-soft p-4">
+                                    <p className="display-font text-xl uppercase">Deadline</p>
+                                    <p className="mt-2 text-base font-semibold text-[var(--tm-muted)]">27 Mei 2026</p>
+                                </div>
+                                <div className="brutal-panel-soft bg-[var(--tm-accent-2)] p-4">
+                                    <p className="display-font text-xl uppercase">Status</p>
+                                    <p className="mt-2 text-base font-semibold text-[var(--tm-line)]">Mencari core team</p>
+                                </div>
+                            </div>
+
+                            <div className="brutal-panel-soft p-4">
+                                <p className="display-font text-xl uppercase">Skill Priority</p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {["Frontend", "ML Engineer", "UI/UX", "Pitching"].map((item) => (
+                                        <span key={item} className="brutal-chip">
+                                            {item}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
