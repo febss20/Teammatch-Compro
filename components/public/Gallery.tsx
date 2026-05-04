@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { type GalleryPhoto, fetchGalleryPhotos } from "@/lib/api";
+import { type GalleryPhoto, fetchGalleryPhotos } from "@/lib/gallery/api";
 
 const categories = ["All", "Hackathon", "Teamwork", "Coding", "Design", "Startup"];
 

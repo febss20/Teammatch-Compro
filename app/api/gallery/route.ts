@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGalleryPhotos } from "@/lib/unsplash";
+import { getGalleryPhotos } from "@/lib/gallery/unsplash";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

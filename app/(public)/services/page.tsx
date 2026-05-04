@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { COMPETITIONS } from "@/lib/data";
+import { COMPETITIONS } from "@/lib/marketing/data";
 
 export const metadata: Metadata = {
     title: "Kategori Lomba | TeamMatch",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { COMPETITIONS } from "@/lib/data";
+import { COMPETITIONS } from "@/lib/marketing/data";
 
 export function generateStaticParams() {
     return COMPETITIONS.map((item) => ({ id: item.id }));

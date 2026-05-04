@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import AuthRegisterForm from "@/components/AuthRegisterForm";
+import AuthRegisterForm from "@/components/auth/AuthRegisterForm";
 import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {

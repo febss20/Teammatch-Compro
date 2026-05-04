@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import AuthLoginForm from "@/components/AuthLoginForm";
+import AuthLoginForm from "@/components/auth/AuthLoginForm";
 import { getCurrentUser, sanitizeNextPath } from "@/lib/auth";
 
 export const metadata: Metadata = {
