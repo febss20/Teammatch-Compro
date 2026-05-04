@@ -1,5 +1,5 @@
 import Link from "next/link";
-import CreateBoardForm from "@/components/CreateBoardForm";
+import CreateBoardForm from "@/components/dashboard/CreateBoardForm";
 import { requireUser } from "@/lib/auth";
 
 export default async function NewBoardPage() {

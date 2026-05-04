@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { ZodError } from "zod";
-import { getFieldErrors } from "@/lib/action-utils";
+import { getFieldErrors } from "@/lib/shared/action-utils";
 import { requireUser } from "@/lib/auth";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -12,7 +12,7 @@ import type { CompetitionIdeaBoardFieldName, FormActionState } from "@/lib/types
 import {
     buildCreateCompetitionIdeaBoardPayload,
     buildUpdateCompetitionIdeaBoardPayload,
-} from "@/lib/validation/competition-idea-board";
+} from "@/lib/boards/validation";
 
 export async function logoutAction(): Promise<void> {
     const supabase = await createServerSupabaseClient();

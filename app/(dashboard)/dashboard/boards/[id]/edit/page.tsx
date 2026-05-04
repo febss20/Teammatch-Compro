@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import EditBoardForm from "@/components/EditBoardForm";
-import DeleteBoardButton from "@/components/DeleteBoardButton";
+import EditBoardForm from "@/components/dashboard/EditBoardForm";
+import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";

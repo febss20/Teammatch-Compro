@@ -1,5 +1,5 @@
-import Gallery from "@/components/Gallery";
-import { getGalleryPhotos } from "@/lib/unsplash";
+import Gallery from "@/components/public/Gallery";
+import { getGalleryPhotos } from "@/lib/gallery/unsplash";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

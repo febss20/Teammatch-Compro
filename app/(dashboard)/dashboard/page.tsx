@@ -1,6 +1,6 @@
 import Link from "next/link";
-import DashboardLogoutButton from "@/components/DashboardLogoutButton";
-import DeleteBoardButton from "@/components/DeleteBoardButton";
+import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
+import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
 import { requireUser } from "@/lib/auth";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";

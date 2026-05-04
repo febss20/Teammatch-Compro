@@ -3,12 +3,12 @@
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { ZodError } from "zod";
-import { getFieldErrors } from "@/lib/action-utils";
+import { getFieldErrors } from "@/lib/shared/action-utils";
 import { registerInitialState } from "@/lib/forms";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { FormActionState, RegisterFieldName } from "@/lib/types";
-import { registerSchema } from "@/lib/validation/auth";
+import { registerSchema } from "@/lib/auth/validation";
 
 export async function registerAction(
     _previousState: FormActionState<RegisterFieldName>,

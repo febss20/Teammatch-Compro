@@ -1,4 +1,4 @@
-import Hero from "@/components/Hero";
+import Hero from "@/components/public/Hero";
 import Link from "next/link";
 
 const workflowItems = [
