@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 
 export default function ContactForm() {
@@ -33,20 +34,22 @@ export default function ContactForm() {
 
     if (status === "success") {
         return (
-            <div className="bg-secondary/10 p-8 rounded-2xl text-center border border-secondary/20">
-                <h3 className="text-2xl font-bold text-secondary mb-2">Pesan Terkirim!</h3>
-                <p className="text-gray-600">Terima kasih telah menghubungi TeamMatch. Kami akan segera membalas pesan Anda.</p>
-                <button onClick={() => setStatus(null)} className="mt-6 text-primary font-semibold hover:underline">
-                    Kirim pesan lain
+            <div className="brutal-panel bg-[var(--tm-accent-2)] p-6 text-center">
+                <h3 className="display-font text-4xl leading-none text-[var(--tm-line)]">Pesan Terkirim</h3>
+                <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-[var(--tm-line)]">
+                    Terima kasih telah menghubungi TeamMatch. Kami akan segera membalas pesan Anda.
+                </p>
+                <button onClick={() => setStatus(null)} className="brutal-button mt-6">
+                    Kirim Pesan Lain
                 </button>
             </div>
         );
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+        <form onSubmit={handleSubmit} className="grid gap-5">
+            <div className="grid gap-2">
+                <label htmlFor="name" className="brutal-label">
                     Nama Lengkap
                 </label>
                 <input
@@ -56,12 +59,12 @@ export default function ContactForm() {
                     type="text"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="brutal-input"
                     placeholder="Masukkan nama Anda"
                 />
             </div>
-            <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="grid gap-2">
+                <label htmlFor="email" className="brutal-label">
                     Email Kampus
                 </label>
                 <input
@@ -71,33 +74,29 @@ export default function ContactForm() {
                     type="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="brutal-input"
                     placeholder="contoh@mahasiswa.ac.id"
                 />
             </div>
-            <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="grid gap-2">
+                <label htmlFor="message" className="brutal-label">
                     Pesan
                 </label>
                 <textarea
                     id="message"
                     name="message"
                     required
-                    rows={4}
+                    rows={5}
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="brutal-textarea"
                     placeholder="Apa yang ingin Anda tanyakan?"
-                ></textarea>
+                />
             </div>
 
-            {status === "error" && <p className="text-red-500 text-sm">Gagal mengirim pesan. Silakan coba lagi.</p>}
+            {status === "error" && <p className="brutal-alert-error text-sm">Gagal mengirim pesan. Silakan coba lagi.</p>}
 
-            <button
-                disabled={status === "loading"}
-                type="submit"
-                className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-lg transition-colors disabled:bg-gray-400"
-            >
+            <button disabled={status === "loading"} type="submit" className="brutal-button w-full">
                 {status === "loading" ? "Mengirim..." : "Kirim Pesan"}
             </button>
         </form>

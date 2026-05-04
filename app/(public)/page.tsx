@@ -1,84 +1,118 @@
 import Hero from "@/components/Hero";
 import Link from "next/link";
 
+const workflowItems = [
+    {
+        id: "01",
+        title: "Tulis Brief Kompetisi",
+        description: "Susun judul, kategori, deadline, dan kebutuhan skill agar ide Anda langsung terbaca serius.",
+        tone: "bg-[var(--tm-accent-2)]",
+    },
+    {
+        id: "02",
+        title: "Filter Rekan yang Relevan",
+        description: "Gunakan board sebagai alat screening awal untuk melihat siapa yang cocok secara peran dan ekspektasi.",
+        tone: "bg-[var(--tm-paper-strong)]",
+    },
+    {
+        id: "03",
+        title: "Masuk ke Dashboard Kerja",
+        description: "Kelola board, edit detail, dan tutup panggilan ketika komposisi tim sudah terbentuk.",
+        tone: "bg-[var(--tm-accent)]",
+    },
+];
+
 export default function HomePage() {
     return (
-        <div>
+        <div className="pb-20">
             <Hero />
 
-            <section className="bg-white py-16">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="relative overflow-hidden rounded-[2rem] border border-cyan-100 bg-[linear-gradient(135deg,_rgba(6,182,212,0.1),_rgba(20,184,166,0.14))] p-8 shadow-[0_30px_80px_rgba(6,182,212,0.14)] md:p-10">
-                        <div className="absolute -right-10 top-0 h-40 w-40 rounded-full bg-cyan-200/40 blur-3xl" />
-                        <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-teal-200/40 blur-3xl" />
-
-                        <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-                            <div>
-                                <div className="inline-flex rounded-full border border-cyan-200 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">
-                                    MVP Feature
-                                </div>
-                                <h2 className="mt-6 text-3xl font-black tracking-tight text-gray-900 md:text-4xl">
-                                    Post Board Ide Lomba dan mulai cari rekan tim dengan brief yang jelas.
-                                </h2>
-                                <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600">
-                                    Fitur ini dirancang sebagai titik awal TeamMatch: Anda menuliskan ide lomba, kategori,
-                                    deadline, dan skill yang dibutuhkan agar calon rekan tim langsung paham kebutuhan
-                                    kolaborasi.
+            <section className="px-4 py-8 md:py-12">
+                <div className="page-frame brutal-panel brutal-stack relative grid gap-8 overflow-hidden bg-[var(--tm-paper-strong)] p-6 md:p-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+                    <div className="space-y-5">
+                        <div className="section-kicker">Main MVP Feature</div>
+                        <h2 className="display-font text-5xl leading-[0.9] text-[var(--tm-line)] md:text-6xl">
+                            POST BOARD
+                            <br />
+                            IDE LOMBA
+                        </h2>
+                        <p className="max-w-2xl text-lg leading-8 text-[var(--tm-muted)]">
+                            Fitur inti TeamMatch bukan feed generik, melainkan board ide yang terasa seperti brief kerja: jelas,
+                            terstruktur, dan cukup tajam untuk mengundang kolaborator yang tepat.
+                        </p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="brutal-panel-soft bg-[var(--tm-accent-2)] p-4">
+                                <p className="display-font text-2xl">Deadline jelas</p>
+                                <p className="mt-2 text-sm leading-6 text-[var(--tm-line)]">
+                                    Calon rekan tim tahu ritme kerja dan urgensi kompetisi sejak awal.
                                 </p>
                             </div>
-
-                            <div className="rounded-[1.75rem] border border-white/80 bg-white/85 p-6 shadow-lg backdrop-blur">
-                                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                                    <p className="text-sm font-semibold text-gray-900">Board Preview</p>
-                                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-                                        Open
-                                    </span>
-                                </div>
-                                <div className="mt-5 space-y-4">
-                                    <h3 className="text-xl font-bold text-gray-900">Hackathon AI untuk Edukasi Kampus</h3>
-                                    <p className="text-sm leading-6 text-gray-600">
-                                        Mencari tim kecil untuk membangun prototype AI assistant yang membantu mahasiswa
-                                        memahami jadwal, tugas, dan materi kuliah dengan lebih cepat.
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {["Frontend", "Machine Learning", "UI/UX", "Pitching"].map((skill) => (
-                                            <span
-                                                key={skill}
-                                                className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
-                                            >
-                                                {skill}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                                <Link
-                                    href="/register"
-                                    className="mt-6 inline-flex items-center rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
-                                >
-                                    Mulai dari Register
-                                </Link>
+                            <div className="brutal-panel-soft p-4">
+                                <p className="display-font text-2xl">Skill spesifik</p>
+                                <p className="mt-2 text-sm leading-6 text-[var(--tm-muted)]">
+                                    Tidak lagi mencari “anggota umum”. Anda memanggil peran yang benar-benar dibutuhkan.
+                                </p>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="brutal-panel grid gap-5 bg-[var(--tm-line)] p-5 text-[var(--tm-paper-strong)] md:p-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="display-font text-3xl">Board Preview</p>
+                            <span className="rounded-full border-[2px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent-2)] px-4 py-2 display-font text-xl text-[var(--tm-line)]">
+                                Open
+                            </span>
+                        </div>
+                        <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-paper-strong)] p-5 text-[var(--tm-line)]">
+                            <h3 className="text-2xl font-semibold leading-tight md:text-3xl">
+                                Hackathon AI untuk Edukasi Kampus
+                            </h3>
+                            <p className="mt-4 text-sm leading-7 text-[var(--tm-muted)]">
+                                Mencari tim kecil untuk membangun AI assistant yang membantu mahasiswa memahami jadwal,
+                                materi, dan tugas lebih cepat dengan pengalaman yang mudah dipakai.
+                            </p>
+                            <div className="mt-5 flex flex-wrap gap-2">
+                                {["Frontend", "Machine Learning", "UI/UX", "Pitching"].map((skill) => (
+                                    <span key={skill} className="brutal-chip">
+                                        {skill}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                        <Link href="/register" className="brutal-button w-full">
+                            Mulai dari Register
+                        </Link>
                     </div>
                 </div>
             </section>
 
-            <section className="py-16 bg-gray-50">
-                <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-8">
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-                        <div className="text-primary text-3xl mb-4 font-bold">01</div>
-                        <h3 className="text-xl font-bold mb-2">Cari Kompetisi</h3>
-                        <p className="text-gray-500">Akses daftar lomba aktif dari berbagai bidang minat.</p>
+            <section className="px-4 py-8 md:py-14">
+                <div className="page-frame space-y-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <div className="space-y-3">
+                            <div className="section-kicker">Workflow</div>
+                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">DRIVE THE MATCH</h2>
+                        </div>
+                        <p className="max-w-xl text-base leading-7 text-[var(--tm-muted)]">
+                            TeamMatch harus terasa seperti papan kerja kompetisi kampus, bukan landing page yang berhenti di
+                            slogan.
+                        </p>
                     </div>
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-                        <div className="text-secondary text-3xl mb-4 font-bold">02</div>
-                        <h3 className="text-xl font-bold mb-2">Filter Skill</h3>
-                        <p className="text-gray-500">Cari teman tim berdasarkan keahlian spesifik yang dibutuhkan.</p>
-                    </div>
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-                        <div className="text-primary text-3xl mb-4 font-bold">03</div>
-                        <h3 className="text-xl font-bold mb-2">Mulai Kolaborasi</h3>
-                        <p className="text-gray-500">Hubungi calon rekan setim dan mulai kerjakan project bersama.</p>
+
+                    <div className="grid gap-5 lg:grid-cols-3">
+                        {workflowItems.map((item, index) => (
+                            <article
+                                key={item.id}
+                                className={`brutal-panel lift-card grid min-h-[270px] gap-5 p-6 ${item.tone} animate-rise`}
+                                style={{ animationDelay: `${index * 100}ms` }}
+                            >
+                                <div className="display-font text-7xl leading-none">{item.id}</div>
+                                <div>
+                                    <h3 className="display-font text-3xl leading-none">{item.title}</h3>
+                                    <p className="mt-4 text-base leading-7 text-[var(--tm-muted)]">{item.description}</p>
+                                </div>
+                            </article>
+                        ))}
                     </div>
                 </div>
             </section>

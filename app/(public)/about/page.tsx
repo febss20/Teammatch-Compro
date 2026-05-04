@@ -7,30 +7,53 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
     return (
-        <div className="py-20 bg-white">
-            <div className="max-w-4xl mx-auto px-4 text-center">
-                <h2 className="text-primary font-semibold tracking-wide uppercase">Tentang Kami</h2>
-                <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                    Mendorong Prestasi Melalui Kolaborasi
-                </p>
-                <div className="mt-10 text-lg text-gray-500 text-left space-y-6">
-                    <p>
-                        TeamMatch lahir dari keresahan mahasiswa yang seringkali memiliki ide cemerlang untuk mengikuti lomba,
-                        namun sulit menemukan rekan tim yang tepat di lingkungan kampus.
-                    </p>
-                    <p>
-                        Kami percaya bahwa setiap mahasiswa memiliki potensi unik. Dengan platform ini, kami ingin meruntuhkan
-                        sekat antar fakultas dan jurusan agar kolaborasi multidisiplin dapat terjalin dengan lebih mudah.
-                    </p>
-                </div>
+        <div className="px-4 py-12 md:py-16">
+            <div className="page-frame grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+                <section className="space-y-5">
+                    <div className="section-kicker">About TeamMatch</div>
+                    <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">
+                        KOLABORASI
+                        <br />
+                        BUKAN
+                        <br />
+                        KEBETULAN
+                    </h1>
+                    <div className="brutal-panel bg-[var(--tm-accent-2)] p-6">
+                        <p className="display-font text-3xl leading-none text-[var(--tm-line)]">Manifesto</p>
+                        <p className="mt-4 text-lg leading-8 text-[var(--tm-line)]">
+                            TeamMatch lahir dari satu masalah yang terlalu sering dianggap normal: ide lomba bagus gugur bukan
+                            karena idenya lemah, tetapi karena timnya tidak pernah terbentuk dengan benar.
+                        </p>
+                    </div>
+                </section>
 
-                <div className="mt-16 bg-secondary/10 p-10 rounded-3xl border border-secondary/20">
-                    <h3 className="text-2xl font-bold text-secondary mb-4">Visi Kami</h3>
-                    <p className="italic text-gray-700">
-                        &quot;Menjadi platform nomor satu bagi mahasiswa untuk membangun tim impian dan mencetak prestasi di
-                        setiap kompetisi.&quot;
-                    </p>
-                </div>
+                <section className="editorial-grid">
+                    <article className="brutal-panel p-6 md:p-8">
+                        <p className="display-font text-3xl leading-none">Kenapa dibuat</p>
+                        <p className="mt-5 text-lg leading-8 text-[var(--tm-muted)]">
+                            Mahasiswa sering memiliki dorongan besar untuk ikut kompetisi, tetapi proses mencari rekan kerja
+                            yang selaras masih acak. TeamMatch ingin mengubah pencarian itu menjadi proses yang lebih
+                            intentional, ringkas, dan terukur.
+                        </p>
+                    </article>
+
+                    <article className="brutal-panel bg-[var(--tm-line)] p-6 text-[var(--tm-paper-strong)] md:p-8">
+                        <p className="display-font text-3xl leading-none">Apa yang dipercaya</p>
+                        <p className="mt-5 text-lg leading-8 text-[#f7eeda]">
+                            Kolaborasi lintas jurusan seharusnya tidak terasa seperti mencari orang secara manual di banyak grup
+                            chat. Brief yang jelas, ownership yang jelas, dan kebutuhan skill yang spesifik adalah fondasi awal
+                            untuk tim yang lebih sehat.
+                        </p>
+                    </article>
+
+                    <article className="brutal-panel brutal-stack p-6 md:p-8">
+                        <p className="display-font text-3xl leading-none">Visi</p>
+                        <blockquote className="mt-6 max-w-3xl text-2xl font-semibold leading-relaxed text-[var(--tm-line)]">
+                            “Menjadi workspace awal paling tegas bagi mahasiswa untuk membangun tim impian dan mengeksekusi
+                            kompetisi dengan brief yang matang.”
+                        </blockquote>
+                    </article>
+                </section>
             </div>
         </div>
     );

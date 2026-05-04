@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Bebas_Neue, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const bebasNeue = Bebas_Neue({
+    subsets: ["latin"],
+    weight: "400",
+    variable: "--font-display",
+});
+
+const ibmPlexSans = IBM_Plex_Sans({
+    subsets: ["latin"],
+    weight: ["400", "500", "600", "700"],
+    variable: "--font-body",
+});
 
 export const metadata: Metadata = {
     title: "TeamMatch - Cari Teman Lomba Kampus",
@@ -11,8 +21,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="id">
-            <body className={`${inter.className} bg-white text-gray-900`}>{children}</body>
+        <html lang="id" className={`${bebasNeue.variable} ${ibmPlexSans.variable}`}>
+            <body className="body-font site-shell text-[var(--tm-ink)] antialiased">{children}</body>
         </html>
     );
 }
