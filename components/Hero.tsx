@@ -13,16 +13,16 @@ export default function Hero() {
                 </p>
                 <div className="flex justify-center gap-4">
                     <Link
-                        href="/services"
+                        href="/register"
                         className="bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-full font-medium transition-all"
                     >
-                        Cari Lomba
+                        Buat Akun Sekarang
                     </Link>
                     <Link
-                        href="/about"
+                        href="/login"
                         className="border-2 border-secondary text-secondary hover:bg-secondary hover:text-white px-8 py-3 rounded-full font-medium transition-all"
                     >
-                        Pelajari Lebih Lanjut
+                        Login Dashboard
                     </Link>
                 </div>
             </div>
