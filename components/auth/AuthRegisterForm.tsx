@@ -21,9 +21,7 @@ export default function AuthRegisterForm() {
         <form action={formAction} className="grid gap-6">
             {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
 
-            {state.success && state.message.length > 0 && (
-                <div className="brutal-alert-success text-sm">{state.message}</div>
-            )}
+            {state.success && state.message.length > 0 && <div className="brutal-alert-success text-sm">{state.message}</div>}
 
             <div className="grid gap-2">
                 <label htmlFor="email" className="brutal-label">
@@ -84,7 +82,7 @@ export default function AuthRegisterForm() {
             </div>
 
             <button type="submit" disabled={pending} className="brutal-button mt-2 w-full">
-                {pending ? "Membuat Akun..." : "Buat Akun dan Masuk"}
+                {pending ? "Sedang menyiapkan akun..." : "Daftar dan masuk"}
             </button>
         </form>
     );

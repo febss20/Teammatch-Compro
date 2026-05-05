@@ -4,20 +4,20 @@ import Link from "next/link";
 const workflowItems = [
     {
         id: "01",
-        title: "Tulis Brief Kompetisi",
-        description: "Susun judul, kategori, deadline, dan kebutuhan skill agar ide Anda langsung terbaca serius.",
+        title: "Tulis ide dengan jelas",
+        description: "Cantumkan judul, kategori, tenggat, dan skill yang dibutuhkan agar orang lain cepat memahami idenya.",
         tone: "bg-[var(--tm-accent-2)]",
     },
     {
         id: "02",
-        title: "Filter Rekan yang Relevan",
-        description: "Gunakan board sebagai alat screening awal untuk melihat siapa yang cocok secara peran dan ekspektasi.",
+        title: "Temukan rekan yang sesuai",
+        description: "Gunakan board untuk melihat siapa yang paling cocok dari sisi peran, kemampuan, dan cara kerja.",
         tone: "bg-[var(--tm-paper-strong)]",
     },
     {
         id: "03",
-        title: "Masuk ke Dashboard Kerja",
-        description: "Kelola board, edit detail, dan tutup panggilan ketika komposisi tim sudah terbentuk.",
+        title: "Kelola lewat dashboard",
+        description: "Perbarui detail board, rapikan kebutuhan tim, lalu tutup ketika susunan anggota sudah lengkap.",
         tone: "bg-[var(--tm-accent)]",
     },
 ];
@@ -30,27 +30,27 @@ export default function HomePage() {
             <section className="px-4 py-8 md:py-12">
                 <div className="page-frame brutal-panel brutal-stack relative grid gap-8 overflow-hidden bg-[var(--tm-paper-strong)] p-6 md:p-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
                     <div className="space-y-5">
-                        <div className="section-kicker">Main MVP Feature</div>
+                        <div className="section-kicker">Fitur utama</div>
                         <h2 className="display-font text-5xl leading-[0.9] text-[var(--tm-line)] md:text-6xl">
                             POST BOARD
                             <br />
                             IDE LOMBA
                         </h2>
                         <p className="max-w-2xl text-lg leading-8 text-[var(--tm-muted)]">
-                            Fitur inti TeamMatch bukan feed generik, melainkan board ide yang terasa seperti brief kerja: jelas,
-                            terstruktur, dan cukup tajam untuk mengundang kolaborator yang tepat.
+                            TeamMatch berpusat pada board ide lomba. Di sini, Anda bisa menjelaskan ide, kebutuhan tim, dan
+                            tenggat dengan singkat supaya calon rekan tim langsung memahami konteksnya.
                         </p>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="brutal-panel-soft bg-[var(--tm-accent-2)] p-4">
-                                <p className="display-font text-2xl">Deadline jelas</p>
+                                <p className="display-font text-2xl">Tenggat jelas</p>
                                 <p className="mt-2 text-sm leading-6 text-[var(--tm-line)]">
-                                    Calon rekan tim tahu ritme kerja dan urgensi kompetisi sejak awal.
+                                    Orang lain bisa langsung menangkap ritme kerja dan tingkat urgensinya.
                                 </p>
                             </div>
                             <div className="brutal-panel-soft p-4">
                                 <p className="display-font text-2xl">Skill spesifik</p>
                                 <p className="mt-2 text-sm leading-6 text-[var(--tm-muted)]">
-                                    Tidak lagi mencari “anggota umum”. Anda memanggil peran yang benar-benar dibutuhkan.
+                                    Anda tidak sekadar mencari anggota, tetapi mencari peran yang memang dibutuhkan.
                                 </p>
                             </div>
                         </div>
@@ -58,9 +58,9 @@ export default function HomePage() {
 
                     <div className="brutal-panel grid gap-5 bg-[var(--tm-line)] p-5 text-[var(--tm-paper-strong)] md:p-6">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="display-font text-3xl">Board Preview</p>
+                            <p className="display-font text-3xl">Contoh Board</p>
                             <span className="rounded-full border-[2px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent-2)] px-4 py-2 display-font text-xl text-[var(--tm-line)]">
-                                Open
+                                Aktif
                             </span>
                         </div>
                         <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-paper-strong)] p-5 text-[var(--tm-line)]">
@@ -68,8 +68,8 @@ export default function HomePage() {
                                 Hackathon AI untuk Edukasi Kampus
                             </h3>
                             <p className="mt-4 text-sm leading-7 text-[var(--tm-muted)]">
-                                Mencari tim kecil untuk membangun AI assistant yang membantu mahasiswa memahami jadwal,
-                                materi, dan tugas lebih cepat dengan pengalaman yang mudah dipakai.
+                                Mencari tim kecil untuk membangun AI assistant yang membantu mahasiswa memahami jadwal, materi,
+                                dan tugas dengan cara yang lebih praktis.
                             </p>
                             <div className="mt-5 flex flex-wrap gap-2">
                                 {["Frontend", "Machine Learning", "UI/UX", "Pitching"].map((skill) => (
@@ -80,7 +80,7 @@ export default function HomePage() {
                             </div>
                         </div>
                         <Link href="/register" className="brutal-button w-full">
-                            Mulai dari Register
+                            Mulai dengan daftar
                         </Link>
                     </div>
                 </div>
@@ -90,12 +90,12 @@ export default function HomePage() {
                 <div className="page-frame space-y-6">
                     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div className="space-y-3">
-                            <div className="section-kicker">Workflow</div>
-                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">DRIVE THE MATCH</h2>
+                            <div className="section-kicker">Alur singkat</div>
+                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">MULAI DARI IDE, LANJUT KE TIM</h2>
                         </div>
                         <p className="max-w-xl text-base leading-7 text-[var(--tm-muted)]">
-                            TeamMatch harus terasa seperti papan kerja kompetisi kampus, bukan landing page yang berhenti di
-                            slogan.
+                            TeamMatch dirancang supaya proses mencari rekan lomba terasa lebih rapi dan tidak berhenti di
+                            obrolan yang serba acak.
                         </p>
                     </div>
 

@@ -35,11 +35,11 @@ export default function CreateBoardForm() {
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
                 <div className="space-y-4">
-                    <div className="section-kicker w-fit">Workspace Board</div>
-                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">BANGUN BOARD YANG TERASA SIAP KERJA</h2>
+                    <div className="section-kicker w-fit">Buat board baru</div>
+                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">TULIS IDE DENGAN JELAS SEJAK AWAL</h2>
                     <p className="max-w-3xl text-base leading-8 text-[var(--tm-muted)]">
-                        Jelaskan ide secara ringkas, tetapkan deadline, dan nyatakan skill yang benar-benar dibutuhkan agar
-                        proses matching lebih presisi sejak awal.
+                        Jelaskan ide secara ringkas, tetapkan tenggat, dan tulis skill yang memang dibutuhkan agar calon rekan
+                        tim lebih cepat memahami konteksnya.
                     </p>
                 </div>
 
@@ -56,11 +56,13 @@ export default function CreateBoardForm() {
                             type="text"
                             required
                             disabled={pending}
-                            placeholder="Contoh: Tim Hackathon AI untuk Solusi Edukasi Kampus"
+                            placeholder="Contoh: Tim Hackathon AI untuk Solusi Belajar di Kampus"
                             className="brutal-input"
                         />
                         {getFieldError(state.fieldErrors, "title") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "title")}</p>
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "title")}
+                            </p>
                         )}
                     </div>
 
@@ -134,7 +136,7 @@ export default function CreateBoardForm() {
                             required
                             rows={6}
                             disabled={pending}
-                            placeholder="Jelaskan masalah yang ingin diselesaikan, pendekatan solusi, target lomba, dan ekspektasi kolaborasi tim."
+                            placeholder="Jelaskan masalah yang ingin diselesaikan, pendekatan solusi, target lomba, dan harapan Anda terhadap kerja tim."
                             className="brutal-textarea"
                         />
                         {getFieldError(state.fieldErrors, "description") && (
@@ -168,11 +170,10 @@ export default function CreateBoardForm() {
 
                 <div className="grid gap-4 border-t-[3px] border-dashed border-[var(--tm-line)] pt-6 md:grid-cols-[1fr_auto] md:items-center">
                     <p className="max-w-xl text-sm leading-7 text-[var(--tm-muted)]">
-                        Board yang jelas akan mempercepat Anda menemukan kolaborator yang tepat dan mengurangi mismatch
-                        ekspektasi.
+                        Board yang jelas akan memudahkan Anda menemukan rekan tim yang lebih sesuai sejak awal.
                     </p>
                     <button type="submit" disabled={pending} className="brutal-button min-w-[220px]">
-                        {pending ? "Menyimpan Board..." : "Simpan Board"}
+                        {pending ? "Menyimpan board..." : "Simpan board"}
                     </button>
                 </div>
             </div>

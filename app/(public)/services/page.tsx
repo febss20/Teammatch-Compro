@@ -14,12 +14,12 @@ export default async function ServicesPage() {
             <div className="page-frame space-y-8">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div className="space-y-4">
-                        <div className="section-kicker">Competition Categories</div>
-                        <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">PILIH ARENA YANG TEPAT</h1>
+                        <div className="section-kicker">Kategori lomba</div>
+                        <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">PILIH KATEGORI YANG SESUAI</h1>
                     </div>
                     <p className="max-w-xl text-lg leading-8 text-[var(--tm-muted)]">
-                        Setiap kategori punya ritme, skill, dan pola kolaborasi yang berbeda. TeamMatch menempatkannya seperti
-                        dossier, bukan kartu promosi biasa.
+                        Setiap kategori punya ritme, kebutuhan skill, dan pola kerja yang berbeda. Bagian ini membantu Anda
+                        memahami konteksnya lebih cepat.
                     </p>
                 </div>
 
@@ -39,7 +39,7 @@ export default async function ServicesPage() {
                                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 />
                                 <div className="absolute left-4 top-4 rotate-[-3deg] border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-2)] px-3 py-2 display-font text-2xl leading-none">
-                                    Category
+                                    Kategori
                                 </div>
                             </div>
                             <div className="grid gap-5 p-6">
@@ -48,7 +48,7 @@ export default async function ServicesPage() {
                                     <p className="mt-4 text-base leading-7 text-[var(--tm-muted)]">{item.description}</p>
                                 </div>
                                 <Link href={`/services/${item.id}`} className="brutal-button w-full">
-                                    Lihat Detail
+                                    Lihat detail
                                 </Link>
                             </div>
                         </article>

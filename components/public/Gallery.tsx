@@ -1,65 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { type GalleryPhoto, fetchGalleryPhotos } from "@/lib/gallery/api";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { galleryCategories, getGallerySearchState, type GalleryCategory, type GalleryPhoto } from "@/lib/gallery/api";
 
-const categories = ["All", "Hackathon", "Teamwork", "Coding", "Design", "Startup"];
-
-export default function Gallery({
-    initialPhotos,
-    showSearch = false,
-}: {
+interface GalleryProps {
     initialPhotos: GalleryPhoto[];
     showSearch?: boolean;
-}) {
-    const [photos, setPhotos] = useState<GalleryPhoto[]>(initialPhotos);
-    const [activeCategory, setActiveCategory] = useState("All");
+}
+
+function buildGallerySearchParams(q: string, category: GalleryCategory): URLSearchParams {
+    const params = new URLSearchParams();
+    const normalizedQuery = q.trim();
+
+    if (normalizedQuery.length > 0) {
+        params.set("q", normalizedQuery);
+    }
+
+    if (category !== "All") {
+        params.set("category", category);
+    }
+
+    return params;
+}
+
+export default function Gallery({ initialPhotos, showSearch = false }: GalleryProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
     const [selectedPhoto, setSelectedPhoto] = useState<GalleryPhoto | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [isPending, startTransition] = useTransition();
 
-    const handleSearch = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!searchQuery.trim() && activeCategory === "All") {
-            setPhotos(initialPhotos);
-            return;
-        }
+    const urlState = getGallerySearchState({
+        q: searchParams.get("q"),
+        category: searchParams.get("category"),
+    });
+    const activeCategory = urlState.category;
 
-        setIsLoading(true);
-        const queryTerm = searchQuery.trim() ? searchQuery : activeCategory !== "All" ? activeCategory : "competition";
-        try {
-            const photosData = await fetchGalleryPhotos(queryTerm, 9);
-            setPhotos(photosData);
-        } catch {
-            // silently handled
-        } finally {
-            setIsLoading(false);
-        }
+    const replaceGalleryUrl = (queryValue: string, category: GalleryCategory) => {
+        const nextParams = buildGallerySearchParams(queryValue, category);
+        const nextUrl = nextParams.toString().length > 0 ? `${pathname}?${nextParams.toString()}` : pathname;
+
+        startTransition(() => {
+            router.replace(nextUrl, { scroll: false });
+        });
     };
 
-    const handleCategoryChange = async (category: string) => {
-        setActiveCategory(category);
-        if (category === "All") {
-            setPhotos(initialPhotos);
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const photosData = await fetchGalleryPhotos(category.toLowerCase(), 9);
-            setPhotos(photosData);
-        } catch {
-            // silently handled
-        } finally {
-            setIsLoading(false);
-        }
+    const handleSearch = (event: React.FormEvent) => {
+        event.preventDefault();
+        replaceGalleryUrl(searchInputRef.current?.value ?? urlState.q, activeCategory);
+    };
+
+    const handleCategoryChange = (category: GalleryCategory) => {
+        replaceGalleryUrl(searchInputRef.current?.value ?? urlState.q, category);
     };
 
     return (
         <section className="relative space-y-6">
             <div className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-5 md:grid-cols-[1fr_auto] md:items-center">
                 <div className="flex flex-wrap gap-3">
-                    {categories.map((category) => (
+                    {galleryCategories.map((category) => (
                         <button
                             key={category}
                             onClick={() => handleCategoryChange(category)}
@@ -77,10 +79,12 @@ export default function Gallery({
                 {showSearch && (
                     <form onSubmit={handleSearch} className="relative w-full md:w-[22rem]">
                         <input
+                            key={`${urlState.q}-${activeCategory}`}
+                            ref={searchInputRef}
                             type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Cari foto kompetisi"
+                            defaultValue={urlState.q}
+                            onChange={(event) => replaceGalleryUrl(event.currentTarget.value, activeCategory)}
+                            placeholder="Cari foto suasana lomba"
                             className="brutal-input !pr-14"
                         />
                         <button
@@ -101,14 +105,14 @@ export default function Gallery({
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {isLoading
+                {isPending
                     ? Array.from({ length: 9 }).map((_, i) => (
                           <div
                               key={`skeleton-${i}`}
                               className="brutal-panel aspect-[4/3] animate-poster bg-[var(--tm-paper-muted)]"
                           />
                       ))
-                    : photos.map((photo, i) => (
+                    : initialPhotos.map((photo, i) => (
                           <button
                               key={photo.id}
                               onClick={() => setSelectedPhoto(photo)}
@@ -125,7 +129,7 @@ export default function Gallery({
                               />
                               <div className="absolute inset-x-0 bottom-0 border-t-[3px] border-[var(--tm-line)] bg-[rgba(255,249,239,0.92)] p-4">
                                   <p className="display-font text-2xl leading-none text-[var(--tm-line)]">
-                                      {photo.location || "Competition Moment"}
+                                      {photo.location || "Momen kompetisi"}
                                   </p>
                                   <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--tm-muted)]">
                                       {photo.photographer}
@@ -167,7 +171,7 @@ export default function Gallery({
                                     {selectedPhoto.location || selectedPhoto.alt}
                                 </h3>
                                 <p className="mt-3 text-sm leading-7 text-[var(--tm-muted)]">
-                                    Photo by{" "}
+                                    Foto oleh{" "}
                                     <a
                                         href={`${selectedPhoto.photographerUrl}?utm_source=teammatch_compro&utm_medium=referral`}
                                         target="_blank"
@@ -179,7 +183,7 @@ export default function Gallery({
                                     on Unsplash
                                 </p>
                             </div>
-                            <div className="section-kicker">Gallery Focus</div>
+                            <div className="section-kicker">Sorotan</div>
                         </div>
                     </div>
                 </div>

@@ -4,7 +4,7 @@ export default function DashboardLogoutButton() {
     return (
         <form action={logoutAction}>
             <button type="submit" className="brutal-button-secondary">
-                Logout
+                Keluar
             </button>
         </form>
     );

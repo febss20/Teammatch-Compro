@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { ZodError } from "zod";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { registerInitialState } from "@/lib/forms";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -15,11 +14,21 @@ export async function registerAction(
     formData: FormData,
 ): Promise<FormActionState<RegisterFieldName>> {
     try {
-        const parsedData = registerSchema.parse({
+        const validationResult = registerSchema.safeParse({
             email: formData.get("email"),
             password: formData.get("password"),
             confirm_password: formData.get("confirm_password"),
         });
+
+        if (!validationResult.success) {
+            return {
+                ...registerInitialState,
+                formError: "Periksa kembali data registrasi Anda.",
+                fieldErrors: getFieldErrors<RegisterFieldName>(validationResult.error),
+            };
+        }
+
+        const parsedData = validationResult.data;
 
         const supabase = await createServerSupabaseClient();
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -63,14 +72,6 @@ export async function registerAction(
     } catch (error: unknown) {
         if (isRedirectError(error)) {
             throw error;
-        }
-
-        if (error instanceof ZodError) {
-            return {
-                ...registerInitialState,
-                formError: "Periksa kembali data registrasi Anda.",
-                fieldErrors: getFieldErrors<RegisterFieldName>(error),
-            };
         }
 
         return {

@@ -5,8 +5,10 @@ export default function Loading() {
                 <div className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] px-8 py-10 text-center">
                     <div className="mx-auto h-16 w-16 rounded-full border-[4px] border-[var(--tm-line)] border-t-[var(--tm-accent)] animate-spin bg-[var(--tm-accent-2)]" />
                     <div>
-                        <p className="display-font text-4xl leading-none">Loading</p>
-                        <p className="mt-3 text-sm uppercase tracking-[0.18em] text-[var(--tm-muted)]">Memuat halaman...</p>
+                        <p className="display-font text-4xl leading-none">SEBENTAR...</p>
+                        <p className="mt-3 text-sm uppercase tracking-[0.18em] text-[var(--tm-muted)]">
+                            Halaman sedang dimuat.
+                        </p>
                     </div>
                 </div>
             </div>

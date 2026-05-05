@@ -16,8 +16,8 @@ const competitionTypeLabels: Record<(typeof competitionTypeOptions)[number], str
 };
 
 const statusLabels: Record<(typeof competitionIdeaBoardStatusOptions)[number], string> = {
-    open: "Open",
-    closed: "Closed",
+    open: "Aktif",
+    closed: "Ditutup",
 };
 
 interface EditBoardFormProps {
@@ -64,11 +64,11 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
                 <div className="space-y-4">
-                    <div className="section-kicker w-fit">Edit Board</div>
-                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">PERBARUI BOARD AGAR TETAP RELEVAN</h2>
+                    <div className="section-kicker w-fit">Perbarui board</div>
+                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">RAPIKAN BOARD SESUAI PROGRES TIM</h2>
                     <p className="max-w-3xl text-base leading-8 text-[var(--tm-muted)]">
                         Gunakan halaman ini untuk memperjelas ide, mengganti status board, atau menyesuaikan kebutuhan skill
-                        sesuai progres kompetisi Anda.
+                        sesuai perkembangan tim dan kompetisi Anda.
                     </p>
                 </div>
 
@@ -89,7 +89,9 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                             className="brutal-input"
                         />
                         {getFieldError(state.fieldErrors, "title") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "title")}</p>
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "title")}
+                            </p>
                         )}
                     </div>
 
@@ -138,7 +140,9 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                             ))}
                         </select>
                         {getFieldError(state.fieldErrors, "status") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "status")}</p>
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFieldError(state.fieldErrors, "status")}
+                            </p>
                         )}
                     </div>
 
@@ -228,11 +232,10 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
 
                 <div className="grid gap-4 border-t-[3px] border-dashed border-[var(--tm-line)] pt-6 md:grid-cols-[1fr_auto] md:items-center">
                     <p className="max-w-xl text-sm leading-7 text-[var(--tm-muted)]">
-                        Gunakan status open atau closed untuk memberi sinyal jelas apakah board masih menerima kolaborator
-                        baru.
+                        Gunakan status aktif atau ditutup untuk memberi tahu apakah board masih membuka ruang bagi anggota baru.
                     </p>
                     <button type="submit" disabled={pending} className="brutal-button min-w-[240px]">
-                        {pending ? "Menyimpan Perubahan..." : "Simpan Perubahan"}
+                        {pending ? "Menyimpan perubahan..." : "Simpan perubahan"}
                     </button>
                 </div>
             </div>

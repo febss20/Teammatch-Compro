@@ -20,29 +20,29 @@ export default async function RegisterPage() {
         <div className="min-h-screen px-4 py-10 md:py-14">
             <div className="page-frame grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
                 <section className="grid gap-6">
-                    <div className="section-kicker w-fit">Register Flow</div>
+                    <div className="section-kicker w-fit">Buat akun</div>
                     <div className="brutal-panel bg-[var(--tm-accent)] p-6 md:p-8">
                         <p className="display-font text-[clamp(4.2rem,10vw,7.4rem)] leading-[0.88] text-[var(--tm-line)]">
-                            BUILD
+                            MULAI
                             <br />
-                            YOUR
+                            DARI
                             <br />
-                            BOARD PASS
+                            AKUNMU
                         </p>
                         <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--tm-line)]">
-                            Buat akun untuk mengubah ide lomba menjadi workspace yang bisa dikelola, diperbarui, dan dipoles
-                            dengan ritme kerja yang lebih disiplin.
+                            Buat akun untuk menyimpan ide lomba, mengatur kebutuhan tim, dan mengelolanya dari dashboard
+                            pribadi.
                         </p>
                     </div>
 
                     <div className="grid gap-4">
                         {[
-                            "Akses board ide secara privat dan terproteksi.",
-                            "Kelola create, edit, delete, dan status board dari satu dashboard.",
-                            "Bangun jejak kolaborasi yang lebih siap dikembangkan menjadi platform matching berikutnya.",
+                            "Simpan board ide secara privat di akun Anda.",
+                            "Kelola detail, status, dan kebutuhan tim dari satu dashboard.",
+                            "Mulai dari ide yang rapi sebelum melangkah ke proses kolaborasi yang lebih luas.",
                         ].map((item) => (
                             <div key={item} className="brutal-panel p-5">
-                                <p className="display-font text-2xl leading-none">Feature Note</p>
+                                <p className="display-font text-2xl leading-none">Ringkasnya</p>
                                 <p className="mt-3 text-sm leading-7 text-[var(--tm-muted)]">{item}</p>
                             </div>
                         ))}
@@ -54,8 +54,8 @@ export default async function RegisterPage() {
                         <div className="mb-8 space-y-3">
                             <p className="display-font text-3xl leading-none">Buat akun baru</p>
                             <p className="text-base leading-7 text-[var(--tm-muted)]">
-                                Setelah register berhasil, TeamMatch akan langsung mencoba membuat sesi login dan mengarahkan
-                                Anda ke dashboard.
+                                Setelah pendaftaran berhasil, TeamMatch akan mencoba langsung masuk ke akun Anda dan mengarahkan
+                                ke dashboard.
                             </p>
                         </div>
 

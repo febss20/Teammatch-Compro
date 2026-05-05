@@ -1,6 +1,6 @@
 import Link from "next/link";
+import BoardList from "@/components/dashboard/BoardList";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
-import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
 import { requireUser } from "@/lib/auth";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -47,24 +47,6 @@ function getStatusMessage(searchParams: { created?: string; updated?: string; de
     return null;
 }
 
-function formatDeadline(deadline: string): string {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(deadline));
-}
-
-function formatUpdatedAt(updatedAt: string): string {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(updatedAt));
-}
-
 export default async function DashboardPage({
     searchParams,
 }: {
@@ -90,39 +72,41 @@ export default async function DashboardPage({
             <div className="page-frame space-y-8">
                 <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
                     <div className="brutal-panel bg-[var(--tm-line)] p-6 text-[var(--tm-paper-strong)] md:p-8">
-                        <div className="section-kicker w-fit !bg-[var(--tm-accent-2)] !text-[var(--tm-line)]">Workspace</div>
+                        <div className="section-kicker w-fit !bg-[var(--tm-accent-2)] !text-[var(--tm-line)]">
+                            Dashboard pribadi
+                        </div>
                         <h1 className="mt-5 display-font text-[clamp(4rem,9vw,7rem)] leading-[0.88]">
+                            KELOLA
+                            <br />
                             BOARD
                             <br />
-                            CONTROL
-                            <br />
-                            DESK
+                            IDEMU
                         </h1>
                         <p className="mt-5 max-w-2xl text-lg leading-8 text-[#f7eeda]">
-                            Selamat datang, {user.email ?? "Pengguna TeamMatch"}. Kelola seluruh board ide lomba Anda dari satu
-                            workspace yang ringkas, tegas, dan mudah dipindai.
+                            Selamat datang, {user.email ?? "Pengguna TeamMatch"}. Semua ide lomba Anda tersimpan di sini agar
+                            lebih mudah dipantau, diperbarui, dan dirapikan.
                         </p>
                     </div>
 
                     <div className="grid gap-4">
                         <div className="brutal-panel bg-[var(--tm-paper-strong)] p-6">
-                            <p className="display-font text-3xl leading-none">Quick actions</p>
+                            <p className="display-font text-3xl leading-none">Aksi cepat</p>
                             <div className="mt-5 flex flex-wrap gap-3">
                                 <Link href="/dashboard/boards/new" className="brutal-button">
-                                    Buat Board Ide
+                                    Buat board ide
                                 </Link>
                                 <DashboardLogoutButton />
                             </div>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="brutal-panel bg-[var(--tm-accent-2)] p-5">
-                                <p className="display-font text-2xl leading-none">Total board</p>
+                                <p className="display-font text-2xl leading-none">Jumlah board</p>
                                 <p className="mt-4 display-font text-5xl leading-none">{boards.length}</p>
                             </div>
                             <div className="brutal-panel p-5">
-                                <p className="display-font text-2xl leading-none">Mode</p>
+                                <p className="display-font text-2xl leading-none">Ruang kerja</p>
                                 <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--tm-muted)]">
-                                    Personal workspace
+                                    Privat dan tersusun
                                 </p>
                             </div>
                         </div>
@@ -134,89 +118,19 @@ export default async function DashboardPage({
                 {boards.length === 0 ? (
                     <section className="brutal-stack">
                         <div className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-8 text-center md:p-10">
-                            <div className="mx-auto section-kicker">Empty State</div>
-                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">BOARD PERTAMA MASIH KOSONG</h2>
+                            <div className="mx-auto section-kicker">Belum ada board</div>
+                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">MULAI DARI IDE PERTAMA</h2>
                             <p className="mx-auto max-w-2xl text-base leading-8 text-[var(--tm-muted)]">
-                                Mulai dari satu ide yang tajam. Setelah board pertama dibuat, Anda bisa mengedit, menutup, atau
-                                menghapusnya langsung dari dashboard ini.
+                                Setelah board pertama dibuat, Anda bisa memperbarui detail, menyesuaikan kebutuhan tim, atau
+                                menghapusnya kapan saja dari dashboard ini.
                             </p>
                             <Link href="/dashboard/boards/new" className="brutal-button mx-auto">
-                                Buat Board Pertama
+                                Buat board pertama
                             </Link>
                         </div>
                     </section>
                 ) : (
-                    <section className="space-y-5">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                            <div className="space-y-3">
-                                <div className="section-kicker">Board Anda</div>
-                                <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">ACTIVE COMPETITION SHEETS</h2>
-                            </div>
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--tm-muted)]">
-                                {boards.length} board tersimpan
-                            </p>
-                        </div>
-
-                        <div className="grid gap-5">
-                            {boards.map((board, index) => (
-                                <article
-                                    key={board.id}
-                                    className="brutal-panel lift-card grid gap-6 bg-[var(--tm-paper-strong)] p-6 animate-rise lg:grid-cols-[1fr_auto]"
-                                    style={{ animationDelay: `${index * 80}ms` }}
-                                >
-                                    <div className="space-y-5">
-                                        <div className="flex flex-wrap gap-3">
-                                            <span
-                                                className={`brutal-chip ${board.status === "closed" ? "brutal-status-closed" : "brutal-status-open"}`}
-                                            >
-                                                {board.status}
-                                            </span>
-                                            <span className="brutal-chip bg-[#d6e4ff]">{board.competitionType}</span>
-                                        </div>
-
-                                        <div>
-                                            <h3 className="display-font text-5xl leading-[0.92] text-[var(--tm-line)]">
-                                                {board.title}
-                                            </h3>
-                                            <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--tm-muted)]">
-                                                {board.description}
-                                            </p>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2">
-                                            {board.requiredSkills.map((skill) => (
-                                                <span key={`${board.id}-${skill}`} className="brutal-chip bg-white">
-                                                    {skill}
-                                                </span>
-                                            ))}
-                                        </div>
-
-                                        <div className="grid gap-3 md:grid-cols-2">
-                                            <div className="brutal-panel-soft p-4">
-                                                <p className="display-font text-xl leading-none">Deadline</p>
-                                                <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                                                    {formatDeadline(board.deadline)}
-                                                </p>
-                                            </div>
-                                            <div className="brutal-panel-soft p-4">
-                                                <p className="display-font text-xl leading-none">Update terakhir</p>
-                                                <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                                                    {formatUpdatedAt(board.updatedAt)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap content-start gap-3 lg:w-[220px] lg:justify-end">
-                                        <Link href={`/dashboard/boards/${board.id}/edit`} className="brutal-button-secondary w-full">
-                                            Edit
-                                        </Link>
-                                        <DeleteBoardButton id={board.id} />
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
-                    </section>
+                    <BoardList boards={boards} />
                 )}
             </div>
         </div>

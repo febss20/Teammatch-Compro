@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { ZodError } from "zod";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { sanitizeNextPath } from "@/lib/auth";
 import { loginInitialState } from "@/lib/forms";
@@ -15,11 +14,21 @@ export async function loginAction(
     formData: FormData,
 ): Promise<FormActionState<LoginFieldName>> {
     try {
-        const parsedData = loginSchema.parse({
+        const validationResult = loginSchema.safeParse({
             email: formData.get("email"),
             password: formData.get("password"),
             next: formData.get("next") ?? "/dashboard",
         });
+
+        if (!validationResult.success) {
+            return {
+                ...loginInitialState,
+                formError: "Periksa kembali email dan password Anda.",
+                fieldErrors: getFieldErrors<LoginFieldName>(validationResult.error),
+            };
+        }
+
+        const parsedData = validationResult.data;
 
         const supabase = await createServerSupabaseClient();
         const { error } = await supabase.auth.signInWithPassword({
@@ -35,14 +44,6 @@ export async function loginAction(
     } catch (error: unknown) {
         if (isRedirectError(error)) {
             throw error;
-        }
-
-        if (error instanceof ZodError) {
-            return {
-                ...loginInitialState,
-                formError: "Periksa kembali email dan password Anda.",
-                fieldErrors: getFieldErrors<LoginFieldName>(error),
-            };
         }
 
         return {

@@ -5,17 +5,17 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const NAV_LINKS = [
-    { href: "/", label: "Home" },
-    { href: "/about", label: "About" },
-    { href: "/login?next=/dashboard/boards/new", label: "Post Idea" },
-    { href: "/services", label: "Services" },
-    { href: "/gallery", label: "Gallery" },
-    { href: "/contact", label: "Contact" },
+    { href: "/", label: "Beranda" },
+    { href: "/about", label: "Tentang" },
+    { href: "/login?next=/dashboard/boards/new", label: "Post Ide" },
+    { href: "/services", label: "Kategori" },
+    { href: "/gallery", label: "Galeri" },
+    { href: "/contact", label: "Kontak" },
 ];
 
 const ACTION_LINKS = [
-    { href: "/login", label: "Login" },
-    { href: "/register", label: "Register" },
+    { href: "/login", label: "Masuk" },
+    { href: "/register", label: "Daftar" },
 ];
 
 export default function Navbar() {
@@ -63,7 +63,7 @@ export default function Navbar() {
                     <button
                         className="inline-flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent)] shadow-[4px_4px_0_var(--tm-line)] lg:hidden"
                         onClick={() => setIsOpen(!isOpen)}
-                        aria-label={isOpen ? "Close menu" : "Open menu"}
+                        aria-label={isOpen ? "Tutup menu" : "Buka menu"}
                     >
                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path
@@ -94,10 +94,10 @@ export default function Navbar() {
                         ))}
                         <div className="grid gap-3 border-t-[3px] border-dashed border-[var(--tm-line)] pt-3 md:grid-cols-2">
                             <Link href="/login" onClick={() => setIsOpen(false)} className="brutal-button-secondary">
-                                Login
+                                Masuk
                             </Link>
                             <Link href="/register" onClick={() => setIsOpen(false)} className="brutal-button">
-                                Register
+                                Daftar
                             </Link>
                         </div>
                     </div>

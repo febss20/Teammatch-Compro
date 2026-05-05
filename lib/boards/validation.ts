@@ -43,6 +43,10 @@ const competitionTypeOtherSchema = z.preprocess(
     z.string().trim().max(50, "Jenis lomba lainnya maksimal 50 karakter."),
 );
 
+const deleteCompetitionIdeaBoardSchema = z.object({
+    id: z.uuid("ID board ide tidak valid."),
+});
+
 const boardBaseSchema = z
     .object({
         title: titleSchema,
@@ -125,8 +129,8 @@ export interface CompetitionIdeaBoardUpdatePayload extends CompetitionIdeaBoardP
     status: CompetitionIdeaBoardStatus;
 }
 
-export function buildCreateCompetitionIdeaBoardPayload(formData: FormData): CompetitionIdeaBoardPayload {
-    const parsedData = createCompetitionIdeaBoardSchema.parse({
+export function safeParseCreateCompetitionIdeaBoard(formData: FormData) {
+    return createCompetitionIdeaBoardSchema.safeParse({
         title: formData.get("title"),
         competition_type_select: formData.get("competition_type_select"),
         competition_type_other: formData.get("competition_type_other"),
@@ -135,18 +139,10 @@ export function buildCreateCompetitionIdeaBoardPayload(formData: FormData): Comp
         required_skills: formData.get("required_skills"),
         website: formData.get("website"),
     });
-
-    return {
-        title: parsedData.title,
-        competitionType: resolveCompetitionType(parsedData.competition_type_select, parsedData.competition_type_other),
-        description: parsedData.description,
-        deadline: createDeadlineDate(parsedData.deadline).toISOString(),
-        requiredSkills: normalizeRequiredSkills(parsedData.required_skills),
-    };
 }
 
-export function buildUpdateCompetitionIdeaBoardPayload(formData: FormData): CompetitionIdeaBoardUpdatePayload {
-    const parsedData = updateCompetitionIdeaBoardSchema.parse({
+export function safeParseUpdateCompetitionIdeaBoard(formData: FormData) {
+    return updateCompetitionIdeaBoardSchema.safeParse({
         id: formData.get("id"),
         title: formData.get("title"),
         competition_type_select: formData.get("competition_type_select"),
@@ -157,15 +153,37 @@ export function buildUpdateCompetitionIdeaBoardPayload(formData: FormData): Comp
         status: formData.get("status"),
         website: formData.get("website"),
     });
+}
 
+export function safeParseDeleteCompetitionIdeaBoard(formData: FormData) {
+    return deleteCompetitionIdeaBoardSchema.safeParse({
+        id: formData.get("id"),
+    });
+}
+
+export function createCompetitionIdeaBoardPayload(
+    data: z.infer<typeof createCompetitionIdeaBoardSchema>,
+): CompetitionIdeaBoardPayload {
     return {
-        id: parsedData.id,
-        title: parsedData.title,
-        competitionType: resolveCompetitionType(parsedData.competition_type_select, parsedData.competition_type_other),
-        description: parsedData.description,
-        deadline: createDeadlineDate(parsedData.deadline).toISOString(),
-        requiredSkills: normalizeRequiredSkills(parsedData.required_skills),
-        status: parsedData.status,
+        title: data.title,
+        competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
+        description: data.description,
+        deadline: createDeadlineDate(data.deadline).toISOString(),
+        requiredSkills: normalizeRequiredSkills(data.required_skills),
+    };
+}
+
+export function updateCompetitionIdeaBoardPayload(
+    data: z.infer<typeof updateCompetitionIdeaBoardSchema>,
+): CompetitionIdeaBoardUpdatePayload {
+    return {
+        id: data.id,
+        title: data.title,
+        competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
+        description: data.description,
+        deadline: createDeadlineDate(data.deadline).toISOString(),
+        requiredSkills: normalizeRequiredSkills(data.required_skills),
+        status: data.status,
     };
 }
 
