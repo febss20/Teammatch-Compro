@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
+interface ContactErrorResponse {
+    error?: string;
+}
+
 export default function ContactForm() {
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [formData, setFormData] = useState({ name: "", email: "", message: "" });
 
@@ -12,6 +17,7 @@ export default function ContactForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
         setStatus("loading");
 
         try {
@@ -21,13 +27,17 @@ export default function ContactForm() {
                 body: JSON.stringify(formData),
             });
 
-            if (res.ok) {
-                setStatus("success");
-                setFormData({ name: "", email: "", message: "" });
-            } else {
+            if (!res.ok) {
+                const errorResponse = (await res.json()) as ContactErrorResponse;
+                setErrorMessage(errorResponse.error ?? "Gagal mengirim pesan. Silakan coba lagi.");
                 setStatus("error");
+                return;
             }
+
+            setStatus("success");
+            setFormData({ name: "", email: "", message: "" });
         } catch {
+            setErrorMessage("Gagal mengirim pesan. Silakan coba lagi.");
             setStatus("error");
         }
     };
@@ -37,10 +47,10 @@ export default function ContactForm() {
             <div className="brutal-panel bg-[var(--tm-accent-2)] p-6 text-center">
                 <h3 className="display-font text-4xl leading-none text-[var(--tm-line)]">Pesan Terkirim</h3>
                 <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-[var(--tm-line)]">
-                    Terima kasih telah menghubungi TeamMatch. Kami akan segera membalas pesan Anda.
+                    Terima kasih. Pesan Anda sudah kami terima dan akan segera kami tindak lanjuti.
                 </p>
                 <button onClick={() => setStatus(null)} className="brutal-button mt-6">
-                    Kirim Pesan Lain
+                    Kirim pesan lain
                 </button>
             </div>
         );
@@ -60,7 +70,7 @@ export default function ContactForm() {
                     value={formData.name}
                     onChange={handleChange}
                     className="brutal-input"
-                    placeholder="Masukkan nama Anda"
+                    placeholder="Tulis nama Anda"
                 />
             </div>
             <div className="grid gap-2">
@@ -90,14 +100,14 @@ export default function ContactForm() {
                     value={formData.message}
                     onChange={handleChange}
                     className="brutal-textarea"
-                    placeholder="Apa yang ingin Anda tanyakan?"
+                    placeholder="Tulis pesan Anda di sini"
                 />
             </div>
 
-            {status === "error" && <p className="brutal-alert-error text-sm">Gagal mengirim pesan. Silakan coba lagi.</p>}
+            {status === "error" && errorMessage && <p className="brutal-alert-error text-sm">{errorMessage}</p>}
 
             <button disabled={status === "loading"} type="submit" className="brutal-button w-full">
-                {status === "loading" ? "Mengirim..." : "Kirim Pesan"}
+                {status === "loading" ? "Mengirim..." : "Kirim pesan"}
             </button>
         </form>
     );

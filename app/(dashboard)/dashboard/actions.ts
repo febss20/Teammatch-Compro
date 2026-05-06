@@ -3,16 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { ZodError } from "zod";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { requireUser } from "@/lib/auth";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CompetitionIdeaBoardFieldName, FormActionState } from "@/lib/types";
 import {
-    buildCreateCompetitionIdeaBoardPayload,
-    buildUpdateCompetitionIdeaBoardPayload,
+    createCompetitionIdeaBoardPayload,
+    safeParseCreateCompetitionIdeaBoard,
+    safeParseDeleteCompetitionIdeaBoard,
+    safeParseUpdateCompetitionIdeaBoard,
+    updateCompetitionIdeaBoardPayload,
 } from "@/lib/boards/validation";
+
+interface DeleteCompetitionIdeaBoardResult {
+    formError: string | null;
+    success: boolean;
+}
 
 export async function logoutAction(): Promise<void> {
     const supabase = await createServerSupabaseClient();
@@ -26,7 +33,17 @@ export async function createCompetitionIdeaBoard(
 ): Promise<FormActionState<CompetitionIdeaBoardFieldName>> {
     try {
         const user = await requireUser();
-        const payload = buildCreateCompetitionIdeaBoardPayload(formData);
+        const validationResult = safeParseCreateCompetitionIdeaBoard(formData);
+
+        if (!validationResult.success) {
+            return {
+                ...competitionIdeaBoardInitialState,
+                formError: "Periksa kembali field yang masih belum valid.",
+                fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(validationResult.error),
+            };
+        }
+
+        const payload = createCompetitionIdeaBoardPayload(validationResult.data);
         const supabase = await createServerSupabaseClient();
         const { error } = await supabase.from("competition_idea_boards").insert({
             user_id: user.id,
@@ -51,14 +68,6 @@ export async function createCompetitionIdeaBoard(
             throw error;
         }
 
-        if (error instanceof ZodError) {
-            return {
-                ...competitionIdeaBoardInitialState,
-                formError: "Periksa kembali field yang masih belum valid.",
-                fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(error),
-            };
-        }
-
         return {
             ...competitionIdeaBoardInitialState,
             formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan ide lomba.",
@@ -72,7 +81,17 @@ export async function updateCompetitionIdeaBoard(
 ): Promise<FormActionState<CompetitionIdeaBoardFieldName>> {
     try {
         const user = await requireUser();
-        const payload = buildUpdateCompetitionIdeaBoardPayload(formData);
+        const validationResult = safeParseUpdateCompetitionIdeaBoard(formData);
+
+        if (!validationResult.success) {
+            return {
+                ...competitionIdeaBoardInitialState,
+                formError: "Periksa kembali field yang masih belum valid.",
+                fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(validationResult.error),
+            };
+        }
+
+        const payload = updateCompetitionIdeaBoardPayload(validationResult.data);
         const supabase = await createServerSupabaseClient();
         const { data, error } = await supabase
             .from("competition_idea_boards")
@@ -106,14 +125,6 @@ export async function updateCompetitionIdeaBoard(
             throw error;
         }
 
-        if (error instanceof ZodError) {
-            return {
-                ...competitionIdeaBoardInitialState,
-                formError: "Periksa kembali field yang masih belum valid.",
-                fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(error),
-            };
-        }
-
         return {
             ...competitionIdeaBoardInitialState,
             formError: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui ide lomba.",
@@ -121,31 +132,49 @@ export async function updateCompetitionIdeaBoard(
     }
 }
 
-export async function deleteCompetitionIdeaBoard(formData: FormData): Promise<void> {
-    const user = await requireUser();
-    const id = formData.get("id");
+export async function deleteCompetitionIdeaBoard(formData: FormData): Promise<DeleteCompetitionIdeaBoardResult> {
+    try {
+        const user = await requireUser();
+        const validationResult = safeParseDeleteCompetitionIdeaBoard(formData);
 
-    if (typeof id !== "string" || id.trim().length === 0) {
-        throw new Error("ID board ide tidak valid.");
+        if (!validationResult.success) {
+            return {
+                success: false,
+                formError: validationResult.error.issues[0]?.message ?? "ID board ide tidak valid.",
+            };
+        }
+
+        const supabase = await createServerSupabaseClient();
+        const { data, error } = await supabase
+            .from("competition_idea_boards")
+            .delete()
+            .eq("id", validationResult.data.id)
+            .eq("user_id", user.id)
+            .select("id")
+            .maybeSingle();
+
+        if (error) {
+            throw new Error(`Gagal menghapus board ide lomba: ${error.message}`);
+        }
+
+        if (!data) {
+            throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
+        }
+
+        revalidatePath("/dashboard");
+
+        return {
+            success: true,
+            formError: null,
+        };
+    } catch (error: unknown) {
+        if (isRedirectError(error)) {
+            throw error;
+        }
+
+        return {
+            success: false,
+            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menghapus ide lomba.",
+        };
     }
-
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-        .from("competition_idea_boards")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .select("id")
-        .maybeSingle();
-
-    if (error) {
-        throw new Error(`Gagal menghapus board ide lomba: ${error.message}`);
-    }
-
-    if (!data) {
-        throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
-    }
-
-    revalidatePath("/dashboard");
-    redirect("/dashboard?deleted=1");
 }

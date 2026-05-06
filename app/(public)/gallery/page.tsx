@@ -1,26 +1,32 @@
+import { Metadata } from "next";
 import Gallery from "@/components/public/Gallery";
 import { getGalleryPhotos } from "@/lib/gallery/unsplash";
-import { Metadata } from "next";
+import { getGallerySearchState } from "@/lib/gallery/api";
 
 export const metadata: Metadata = {
-    title: "Gallery Kompetisi | TeamMatch",
-    description: "Jelajahi berbagai keseruan saat kompetisi bersama TeamMatch.",
+    title: "Galeri Kompetisi | TeamMatch",
+    description: "Lihat suasana kompetisi dan kolaborasi mahasiswa di berbagai momen yang terekam.",
 };
 
-export default async function GalleryPage() {
-    const galleryPhotos = await getGalleryPhotos("hackathon competition teamwork", 9, { graceful: true });
+export default async function GalleryPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
+    const resolvedSearchParams = await searchParams;
+    const searchState = getGallerySearchState({
+        q: resolvedSearchParams.q,
+        category: resolvedSearchParams.category,
+    });
+    const galleryPhotos = await getGalleryPhotos(searchState.effectiveQuery, 9, { graceful: true });
 
     return (
         <main className="px-4 py-12 md:py-16">
             <div className="page-frame space-y-8">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div className="space-y-4">
-                        <div className="section-kicker">Competition Gallery</div>
+                        <div className="section-kicker">Galeri kompetisi</div>
                         <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">MOMEN YANG TERASA HIDUP</h1>
                     </div>
                     <p className="max-w-2xl text-lg leading-8 text-[var(--tm-muted)]">
-                        Galeri ini tidak tampil sebagai feed netral. Ia harus terasa seperti papan dokumentasi suasana kompetisi:
-                        padat, energik, dan tetap terkurasi.
+                        Galeri ini merangkum suasana kompetisi yang ramai, fokus, dan penuh kerja sama. Anda bisa menjelajahinya
+                        untuk melihat energi yang ingin dibangun TeamMatch.
                     </p>
                 </div>
 

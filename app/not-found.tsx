@@ -7,7 +7,7 @@ export default function NotFound() {
                 <div className="brutal-stack max-w-3xl">
                     <div className="brutal-panel grid gap-6 bg-[var(--tm-paper-strong)] p-8 text-center md:p-10">
                         <div className="mx-auto section-kicker">404</div>
-                        <h1 className="display-font text-[6rem] leading-[0.82] md:text-[8rem]">HALAMAN LEPAS DARI GRID</h1>
+                        <h1 className="display-font text-[6rem] leading-[0.82] md:text-[8rem]">HALAMAN TIDAK DITEMUKAN</h1>
                         <p className="mx-auto max-w-xl text-base leading-8 text-[var(--tm-muted)]">
                             Halaman yang Anda cari tidak ditemukan. Bisa jadi URL berubah, halaman dipindahkan, atau Anda masuk
                             ke rute yang memang belum ada.

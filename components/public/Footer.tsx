@@ -1,13 +1,13 @@
 import Link from "next/link";
 
 const FOOTER_LINKS = [
-    { href: "/", label: "Home" },
-    { href: "/about", label: "About" },
-    { href: "/login?next=/dashboard/boards/new", label: "Post Idea" },
-    { href: "/services", label: "Services" },
-    { href: "/gallery", label: "Gallery" },
-    { href: "/contact", label: "Contact" },
-    { href: "/register", label: "Register" },
+    { href: "/", label: "Beranda" },
+    { href: "/about", label: "Tentang" },
+    { href: "/login?next=/dashboard/boards/new", label: "Post Ide" },
+    { href: "/services", label: "Kategori" },
+    { href: "/gallery", label: "Galeri" },
+    { href: "/contact", label: "Kontak" },
+    { href: "/register", label: "Daftar" },
 ];
 
 export default function Footer() {
@@ -20,24 +20,23 @@ export default function Footer() {
                             TeamMatch
                         </div>
                         <p className="max-w-xl text-base leading-7 text-[#f7eeda]">
-                            Platform kolaborasi mahasiswa untuk mengubah ide lomba menjadi board yang jelas, tajam, dan siap
-                            mengundang rekan tim yang tepat.
+                            TeamMatch membantu mahasiswa merapikan ide lomba agar lebih mudah menemukan rekan tim yang tepat.
                         </p>
                         <div className="grid gap-3 sm:grid-cols-3">
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent-3)] px-4 py-3">
-                                <p className="display-font text-xl text-white">SPORT-TECH</p>
+                                <p className="display-font text-xl text-white">KOLABORASI</p>
                             </div>
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent-2)] px-4 py-3 text-[var(--tm-line)]">
-                                <p className="display-font text-xl">BOARD FIRST</p>
+                                <p className="display-font text-xl">IDE LOMBA</p>
                             </div>
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-paper-strong)] px-4 py-3 text-[var(--tm-line)]">
-                                <p className="display-font text-xl">CAMPUS MVP</p>
+                                <p className="display-font text-xl">TIM KAMPUS</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        <p className="display-font text-2xl uppercase">Navigate</p>
+                        <p className="display-font text-2xl uppercase">Navigasi</p>
                         <ul className="grid gap-3">
                             {FOOTER_LINKS.map((link) => (
                                 <li key={link.href}>
@@ -53,10 +52,10 @@ export default function Footer() {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="display-font text-2xl uppercase">Contact Desk</p>
+                        <p className="display-font text-2xl uppercase">Kontak</p>
                         <div className="grid gap-3 text-sm text-[#f7eeda]">
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-transparent px-4 py-3">
-                                <p className="display-font text-lg text-white">Location</p>
+                                <p className="display-font text-lg text-white">Lokasi</p>
                                 <p className="mt-2 leading-6">Gedung Sekretariat Mahasiswa, Lt. 2</p>
                             </div>
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-transparent px-4 py-3">
@@ -64,7 +63,7 @@ export default function Footer() {
                                 <p className="mt-2 leading-6">support@teammatch.ac.id</p>
                             </div>
                             <div className="rounded-[18px] border-[3px] border-[var(--tm-paper-strong)] bg-transparent px-4 py-3">
-                                <p className="display-font text-lg text-white">Web</p>
+                                <p className="display-font text-lg text-white">Website</p>
                                 <p className="mt-2 leading-6">www.teammatch.ac.id</p>
                             </div>
                         </div>
@@ -72,7 +71,8 @@ export default function Footer() {
                 </div>
 
                 <div className="border-t-[3px] border-dashed border-[#f7eeda] px-6 py-5 text-sm uppercase tracking-[0.22em] text-[#f7eeda] md:px-10">
-                    © {new Date().getFullYear()} TeamMatch. Connecting ambitious campus builders.
+                    © {new Date().getFullYear()} TeamMatch. Ruang kolaborasi untuk mahasiswa yang ingin menyiapkan tim lomba
+                    dengan lebih matang.
                 </div>
             </div>
         </footer>

@@ -59,12 +59,14 @@ export default function AuthLoginForm({ nextPath }: AuthLoginFormProps) {
                     placeholder="Minimal 8 karakter"
                 />
                 {getFieldError(state.fieldErrors, "password") && (
-                    <p className="text-sm font-semibold text-[var(--tm-danger)]">{getFieldError(state.fieldErrors, "password")}</p>
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFieldError(state.fieldErrors, "password")}
+                    </p>
                 )}
             </div>
 
             <button type="submit" disabled={pending} className="brutal-button mt-2 w-full">
-                {pending ? "Memproses Login..." : "Masuk ke Dashboard"}
+                {pending ? "Sedang memeriksa akun..." : "Masuk ke dashboard"}
             </button>
         </form>
     );

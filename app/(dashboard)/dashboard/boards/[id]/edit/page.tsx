@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import EditBoardForm from "@/components/dashboard/EditBoardForm";
-import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
+import EditBoardDeleteButton from "@/components/dashboard/EditBoardDeleteButton";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
@@ -58,14 +58,16 @@ export default async function EditBoardPage({ params }: { params: Promise<{ id: 
             <div className="page-frame space-y-8">
                 <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
                     <div className="space-y-4">
-                        <div className="section-kicker">Dashboard / Edit Board</div>
-                        <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">RAPIKAN DAN TEGASKAN DETAIL BOARD</h1>
+                        <div className="section-kicker">Dashboard / Edit board</div>
+                        <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">
+                            RAPIKAN DETAIL BOARD SESUAI KEBUTUHAN
+                        </h1>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <Link href="/dashboard" className="brutal-button-secondary">
-                            Kembali ke Dashboard
+                            Kembali ke dashboard
                         </Link>
-                        <DeleteBoardButton id={board.id} />
+                        <EditBoardDeleteButton id={board.id} />
                     </div>
                 </div>
 

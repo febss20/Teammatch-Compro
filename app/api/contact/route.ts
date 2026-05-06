@@ -1,27 +1,25 @@
 import { NextResponse } from "next/server";
-
-interface ContactPayload {
-    name: string;
-    email: string;
-    message: string;
-}
+import { contactPayloadSchema } from "@/lib/shared/contact-validation";
 
 export async function POST(request: Request) {
     try {
-        const body: ContactPayload = await request.json();
+        const body = await request.json();
+        const validationResult = contactPayloadSchema.safeParse(body);
 
-        if (!body.name || !body.email || !body.message) {
-            return NextResponse.json({ error: "Semua field wajib diisi." }, { status: 400 });
-        }
-
-        if (!body.email.includes("@")) {
-            return NextResponse.json({ error: "Format email tidak valid." }, { status: 400 });
+        if (!validationResult.success) {
+            return NextResponse.json(
+                {
+                    error: "Periksa kembali field yang masih belum valid.",
+                    fieldErrors: validationResult.error.flatten().fieldErrors,
+                },
+                { status: 400 },
+            );
         }
 
         console.log("New contact message:", {
-            name: body.name,
-            email: body.email,
-            message: body.message,
+            name: validationResult.data.name,
+            email: validationResult.data.email,
+            message: validationResult.data.message,
             timestamp: new Date().toISOString(),
         });
 
