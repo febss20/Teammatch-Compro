@@ -25,3 +25,35 @@ export const registerSchema = z
             });
         }
     });
+
+export const passwordChangeSchema = z
+    .object({
+        current_password: passwordSchema,
+        new_password: passwordSchema,
+        confirm_new_password: passwordSchema,
+    })
+    .superRefine((data, ctx) => {
+        if (data.current_password === data.new_password) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["new_password"],
+                message: "Password baru harus berbeda dari password saat ini.",
+            });
+        }
+
+        if (data.new_password !== data.confirm_new_password) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["confirm_new_password"],
+                message: "Konfirmasi password baru harus sama.",
+            });
+        }
+    });
+
+export function safeParsePasswordChange(formData: FormData) {
+    return passwordChangeSchema.safeParse({
+        current_password: formData.get("current_password"),
+        new_password: formData.get("new_password"),
+        confirm_new_password: formData.get("confirm_new_password"),
+    });
+}

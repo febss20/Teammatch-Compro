@@ -3,56 +3,42 @@
 import { useActionState, useState } from "react";
 import { updateCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
-import { competitionIdeaBoardStatusOptions, competitionTypeOptions, type CompetitionIdeaBoardRecord } from "@/lib/types";
-
-const competitionTypeLabels: Record<(typeof competitionTypeOptions)[number], string> = {
-    hackathon: "Hackathon",
-    business_plan: "Business Plan",
-    ui_ux_design: "UI/UX Design",
-    data_science: "Data Science",
-    karya_tulis: "Karya Tulis",
-    startup_pitch: "Startup Pitch",
-    other: "Lainnya",
-};
+import {
+    boardVisibilityOptions,
+    competitionIdeaBoardStatusOptions,
+    competitionTypeOptions,
+    type CompetitionIdeaBoardRecord,
+} from "@/lib/types";
+import { boardVisibilityLabels, competitionTypeLabels } from "@/lib/platform";
 
 const statusLabels: Record<(typeof competitionIdeaBoardStatusOptions)[number], string> = {
     open: "Aktif",
     closed: "Ditutup",
 };
 
-interface EditBoardFormProps {
-    board: CompetitionIdeaBoardRecord;
+function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string): string | null {
+    return fieldErrors[fieldName]?.[0] ?? null;
 }
 
-function getFieldError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string): string | null {
-    const errors = fieldErrors[fieldName];
-
-    if (!errors || errors.length === 0) {
-        return null;
-    }
-
-    return errors[0] ?? null;
-}
-
-function getSelectValue(competitionType: string): string {
+function getSelectValue(competitionType: string) {
     return competitionTypeOptions.includes(competitionType as (typeof competitionTypeOptions)[number])
         ? competitionType
-        : "other";
+        : "others";
 }
 
-function getOtherValue(competitionType: string): string {
-    return getSelectValue(competitionType) === "other" ? competitionType : "";
+function getOtherValue(competitionType: string) {
+    return getSelectValue(competitionType) === "others" ? competitionType : "";
 }
 
-function getDateValue(deadline: string): string {
+function getDateValue(deadline: string) {
     return deadline.slice(0, 10);
 }
 
-function getSkillsValue(requiredSkills: string[]): string {
+function getSkillsValue(requiredSkills: string[]) {
     return requiredSkills.join(", ");
 }
 
-export default function EditBoardForm({ board }: EditBoardFormProps) {
+export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRecord }) {
     const initialCompetitionType = getSelectValue(board.competitionType);
     const [selectedCompetitionType, setSelectedCompetitionType] = useState<string>(initialCompetitionType);
     const [state, formAction, pending] = useActionState(updateCompetitionIdeaBoard, competitionIdeaBoardInitialState);
@@ -63,38 +49,33 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                 <input type="hidden" name="id" value={board.id} />
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
-                <div className="space-y-4">
-                    <div className="section-kicker w-fit">Perbarui board</div>
-                    <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">RAPIKAN BOARD SESUAI PROGRES TIM</h2>
-                    <p className="max-w-3xl text-base leading-8 text-[var(--tm-muted)]">
-                        Gunakan halaman ini untuk memperjelas ide, mengganti status board, atau menyesuaikan kebutuhan skill
-                        sesuai perkembangan tim dan kompetisi Anda.
-                    </p>
-                </div>
-
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
 
                 <div className="grid gap-6 md:grid-cols-2">
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="title" className="brutal-label">
-                            Judul Ide Lomba
+                            Judul Ide
                         </label>
-                        <input
-                            id="title"
-                            name="title"
-                            type="text"
-                            required
-                            disabled={pending}
-                            defaultValue={board.title}
-                            className="brutal-input"
-                        />
-                        {getFieldError(state.fieldErrors, "title") && (
+                        <input id="title" name="title" className="brutal-input" defaultValue={board.title} disabled={pending} />
+                        {firstError(state.fieldErrors, "title") && (
                             <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "title")}
+                                {firstError(state.fieldErrors, "title")}
                             </p>
                         )}
                     </div>
-
+                    <div className="grid gap-2 md:col-span-2">
+                        <label htmlFor="summary" className="brutal-label">
+                            Ringkasan
+                        </label>
+                        <textarea
+                            id="summary"
+                            name="summary"
+                            rows={3}
+                            className="brutal-textarea"
+                            defaultValue={board.summary ?? ""}
+                            disabled={pending}
+                        />
+                    </div>
                     <div className="grid gap-2">
                         <label htmlFor="competition_type_select" className="brutal-label">
                             Jenis Lomba
@@ -102,11 +83,10 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                         <select
                             id="competition_type_select"
                             name="competition_type_select"
-                            required
-                            disabled={pending}
-                            value={selectedCompetitionType}
-                            onChange={(event) => setSelectedCompetitionType(event.target.value)}
                             className="brutal-select"
+                            value={selectedCompetitionType}
+                            disabled={pending}
+                            onChange={(event) => setSelectedCompetitionType(event.target.value)}
                         >
                             {competitionTypeOptions.map((option) => (
                                 <option key={option} value={option}>
@@ -114,13 +94,7 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                                 </option>
                             ))}
                         </select>
-                        {getFieldError(state.fieldErrors, "competition_type_select") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "competition_type_select")}
-                            </p>
-                        )}
                     </div>
-
                     <div className="grid gap-2">
                         <label htmlFor="status" className="brutal-label">
                             Status Board
@@ -128,10 +102,9 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                         <select
                             id="status"
                             name="status"
-                            required
-                            disabled={pending}
                             defaultValue={board.status}
                             className="brutal-select"
+                            disabled={pending}
                         >
                             {competitionIdeaBoardStatusOptions.map((status) => (
                                 <option key={status} value={status}>
@@ -139,34 +112,39 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                                 </option>
                             ))}
                         </select>
-                        {getFieldError(state.fieldErrors, "status") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "status")}
-                            </p>
-                        )}
                     </div>
-
                     <div className="grid gap-2">
                         <label htmlFor="deadline" className="brutal-label">
-                            Deadline Lomba
+                            Deadline
                         </label>
                         <input
                             id="deadline"
                             name="deadline"
                             type="date"
-                            required
-                            disabled={pending}
-                            defaultValue={getDateValue(board.deadline)}
                             className="brutal-input"
+                            defaultValue={getDateValue(board.deadline)}
+                            disabled={pending}
                         />
-                        {getFieldError(state.fieldErrors, "deadline") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "deadline")}
-                            </p>
-                        )}
                     </div>
-
-                    {selectedCompetitionType === "other" && (
+                    <div className="grid gap-2">
+                        <label htmlFor="visibility" className="brutal-label">
+                            Visibilitas
+                        </label>
+                        <select
+                            id="visibility"
+                            name="visibility"
+                            defaultValue={board.visibility}
+                            className="brutal-select"
+                            disabled={pending}
+                        >
+                            {boardVisibilityOptions.map((visibility) => (
+                                <option key={visibility} value={visibility}>
+                                    {boardVisibilityLabels[visibility]}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {selectedCompetitionType === "others" && (
                         <div className="grid gap-2 md:col-span-2">
                             <label htmlFor="competition_type_other" className="brutal-label">
                                 Jenis Lomba Lainnya
@@ -174,67 +152,95 @@ export default function EditBoardForm({ board }: EditBoardFormProps) {
                             <input
                                 id="competition_type_other"
                                 name="competition_type_other"
-                                type="text"
-                                required
-                                disabled={pending}
-                                defaultValue={getOtherValue(board.competitionType)}
                                 className="brutal-input"
+                                defaultValue={getOtherValue(board.competitionType)}
+                                disabled={pending}
                             />
-                            {getFieldError(state.fieldErrors, "competition_type_other") && (
-                                <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                    {getFieldError(state.fieldErrors, "competition_type_other")}
-                                </p>
-                            )}
                         </div>
                     )}
-
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="description" className="brutal-label">
-                            Deskripsi Ide
+                            Deskripsi Lengkap
                         </label>
                         <textarea
                             id="description"
                             name="description"
-                            required
                             rows={6}
-                            disabled={pending}
-                            defaultValue={board.description}
                             className="brutal-textarea"
+                            defaultValue={board.description}
+                            disabled={pending}
                         />
-                        {getFieldError(state.fieldErrors, "description") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "description")}
-                            </p>
-                        )}
                     </div>
-
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="required_skills" className="brutal-label">
-                            Skill yang Dibutuhkan
+                            Skill Dibutuhkan
                         </label>
                         <input
                             id="required_skills"
                             name="required_skills"
-                            type="text"
-                            required
-                            disabled={pending}
-                            defaultValue={getSkillsValue(board.requiredSkills)}
                             className="brutal-input"
+                            defaultValue={getSkillsValue(board.requiredSkills)}
+                            disabled={pending}
                         />
-                        <p className="text-sm leading-7 text-[var(--tm-muted)]">Pisahkan dengan koma. Maksimal 10 skill.</p>
-                        {getFieldError(state.fieldErrors, "required_skills") && (
-                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {getFieldError(state.fieldErrors, "required_skills")}
-                            </p>
-                        )}
+                    </div>
+                    <div className="grid gap-2">
+                        <label htmlFor="slot_role_1" className="brutal-label">
+                            Peran Utama
+                        </label>
+                        <input
+                            id="slot_role_1"
+                            name="slot_role_1"
+                            className="brutal-input"
+                            defaultValue={board.slots[0]?.roleName ?? "Frontend Engineer"}
+                            disabled={pending}
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <label htmlFor="slot_count_1" className="brutal-label">
+                            Jumlah Slot Utama
+                        </label>
+                        <input
+                            id="slot_count_1"
+                            name="slot_count_1"
+                            type="number"
+                            min={1}
+                            max={10}
+                            className="brutal-input"
+                            defaultValue={board.slots[0]?.slotCount ?? 1}
+                            disabled={pending}
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <label htmlFor="slot_role_2" className="brutal-label">
+                            Peran Tambahan
+                        </label>
+                        <input
+                            id="slot_role_2"
+                            name="slot_role_2"
+                            className="brutal-input"
+                            defaultValue={board.slots[1]?.roleName ?? ""}
+                            disabled={pending}
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <label htmlFor="slot_count_2" className="brutal-label">
+                            Jumlah Slot Tambahan
+                        </label>
+                        <input
+                            id="slot_count_2"
+                            name="slot_count_2"
+                            type="number"
+                            min={1}
+                            max={10}
+                            className="brutal-input"
+                            defaultValue={board.slots[1]?.slotCount ?? 1}
+                            disabled={pending}
+                        />
                     </div>
                 </div>
 
-                <div className="grid gap-4 border-t-[3px] border-dashed border-[var(--tm-line)] pt-6 md:grid-cols-[1fr_auto] md:items-center">
-                    <p className="max-w-xl text-sm leading-7 text-[var(--tm-muted)]">
-                        Gunakan status aktif atau ditutup untuk memberi tahu apakah board masih membuka ruang bagi anggota baru.
-                    </p>
-                    <button type="submit" disabled={pending} className="brutal-button min-w-[240px]">
+                <div className="flex justify-end">
+                    <button type="submit" disabled={pending} className="brutal-button min-w-[220px]">
                         {pending ? "Menyimpan perubahan..." : "Simpan perubahan"}
                     </button>
                 </div>

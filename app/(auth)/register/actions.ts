@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { getFieldErrors } from "@/lib/shared/action-utils";
+import { getProfileRecord } from "@/lib/dashboard/data";
 import { registerInitialState } from "@/lib/forms";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -68,7 +69,8 @@ export async function registerAction(
             };
         }
 
-        redirect("/dashboard");
+        const profile = await getProfileRecord(signUpData.user.id, signUpData.user.email);
+        redirect(profile?.profileCompletedAt ? "/dashboard" : "/dashboard/profile/setup");
     } catch (error: unknown) {
         if (isRedirectError(error)) {
             throw error;

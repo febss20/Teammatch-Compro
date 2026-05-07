@@ -1,0 +1,43 @@
+"use client";
+
+import { markNotificationRead } from "@/app/(dashboard)/dashboard/actions";
+import { notificationCategoryLabels } from "@/lib/platform";
+import type { NotificationRecord } from "@/lib/types";
+
+export default function NotificationsList({ notifications }: { notifications: NotificationRecord[] }) {
+    return (
+        <div className="grid gap-4">
+            {notifications.map((notification) => (
+                <article key={notification.id} className="brutal-panel grid gap-4 bg-[var(--tm-paper-strong)] p-5">
+                    <div className="flex flex-wrap gap-3">
+                        <span className="brutal-chip bg-[var(--tm-accent-2)]">{notificationCategoryLabels[notification.category]}</span>
+                        <span className={`brutal-chip ${notification.isRead ? "bg-white" : "bg-[var(--tm-accent)]"}`}>
+                            {notification.isRead ? "Read" : "Unread"}
+                        </span>
+                    </div>
+                    <div>
+                        <h3 className="display-font text-3xl leading-none">{notification.title}</h3>
+                        <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
+                            {notification.body}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        {notification.linkPath && (
+                            <a href={notification.linkPath} className="brutal-button-secondary">
+                                Buka tautan
+                            </a>
+                        )}
+                        {!notification.isRead && (
+                            <form action={markNotificationRead}>
+                                <input type="hidden" name="notification_id" value={notification.id} />
+                                <button type="submit" className="brutal-button">
+                                    Tandai dibaca
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </article>
+            ))}
+        </div>
+    );
+}

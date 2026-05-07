@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { sanitizeNextPath } from "@/lib/auth";
+import { getProfileRecord } from "@/lib/dashboard/data";
 import { loginInitialState } from "@/lib/forms";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { FormActionState, LoginFieldName } from "@/lib/types";
@@ -40,7 +41,12 @@ export async function loginAction(
             throw new Error(`Login gagal: ${error.message}`);
         }
 
-        redirect(sanitizeNextPath(parsedData.next));
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        const profile = user ? await getProfileRecord(user.id, user.email) : null;
+        redirect(profile?.profileCompletedAt ? sanitizeNextPath(parsedData.next) : "/dashboard/profile/setup");
     } catch (error: unknown) {
         if (isRedirectError(error)) {
             throw error;

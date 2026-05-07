@@ -7,7 +7,7 @@ import { useState } from "react";
 const NAV_LINKS = [
     { href: "/", label: "Beranda" },
     { href: "/about", label: "Tentang" },
-    { href: "/login?next=/dashboard/boards/new", label: "Post Ide" },
+    { href: "/login?next=/dashboard/boards", label: "Boards" },
     { href: "/services", label: "Kategori" },
     { href: "/gallery", label: "Galeri" },
     { href: "/contact", label: "Kontak" },
