@@ -1,9 +1,11 @@
 import Link from "next/link";
 import CreateBoardForm from "@/components/dashboard/CreateBoardForm";
 import { requireCompletedProfile } from "@/lib/auth";
+import { getBoardDraft, getTaxonomies } from "@/lib/dashboard/data";
 
 export default async function NewBoardPage() {
-    await requireCompletedProfile();
+    const { user } = await requireCompletedProfile();
+    const [draft, taxonomies] = await Promise.all([getBoardDraft(user.id), getTaxonomies()]);
 
     return (
         <div className="min-h-screen px-4 py-10 md:py-14">
@@ -18,7 +20,11 @@ export default async function NewBoardPage() {
                     </Link>
                 </div>
 
-                <CreateBoardForm />
+                <CreateBoardForm
+                    key={draft?.updatedAt ?? "fresh-board"}
+                    competitionTypes={taxonomies.competitionTypes}
+                    draft={draft}
+                />
             </div>
         </div>
     );

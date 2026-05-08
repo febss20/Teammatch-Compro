@@ -12,6 +12,7 @@ import type {
     ProfileStepTwoFieldName,
     RegisterFieldName,
     SettingsFieldName,
+    TeamResourceFieldName,
     TeamRenameFieldName,
     TeamResultFieldName,
     TestimonialFieldName,
@@ -41,3 +42,4 @@ export const commitmentInitialState = createInitialState<CommitmentFieldName>();
 export const teamRenameInitialState = createInitialState<TeamRenameFieldName>();
 export const teamResultInitialState = createInitialState<TeamResultFieldName>();
 export const testimonialInitialState = createInitialState<TestimonialFieldName>();
+export const teamResourceInitialState = createInitialState<TeamResourceFieldName>();

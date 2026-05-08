@@ -4,28 +4,11 @@ import Link from "next/link";
 import { startTransition, useOptimistic, useState } from "react";
 import { deleteCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
 import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
+import { formatDashboardDate, formatDashboardDateTime } from "@/lib/shared/formatters";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
 
 interface BoardListProps {
     boards: CompetitionIdeaBoardRecord[];
-}
-
-function formatDeadline(deadline: string): string {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(deadline));
-}
-
-function formatUpdatedAt(updatedAt: string): string {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(updatedAt));
 }
 
 export default function BoardList({ boards }: BoardListProps) {
@@ -88,12 +71,14 @@ export default function BoardList({ boards }: BoardListProps) {
                                 >
                                     {board.status === "closed" ? "Ditutup" : "Aktif"}
                                 </span>
-                                <span className="brutal-chip bg-[#d6e4ff]">{board.competitionType}</span>
+                                <span className="brutal-chip bg-[var(--tm-surface-info)]">{board.competitionType}</span>
                             </div>
 
                             <div>
                                 <h3 className="display-font text-5xl leading-[0.92] text-[var(--tm-line)]">{board.title}</h3>
-                                <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--tm-muted)] break-words">{board.description}</p>
+                                <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--tm-muted)] break-words">
+                                    {board.description}
+                                </p>
                             </div>
 
                             <div className="flex flex-wrap gap-2">
@@ -108,13 +93,13 @@ export default function BoardList({ boards }: BoardListProps) {
                                 <div className="brutal-panel-soft p-4">
                                     <p className="display-font text-xl leading-none">Deadline</p>
                                     <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                                        {formatDeadline(board.deadline)}
+                                        {formatDashboardDate(board.deadline)}
                                     </p>
                                 </div>
                                 <div className="brutal-panel-soft p-4">
                                     <p className="display-font text-xl leading-none">Terakhir diperbarui</p>
                                     <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                                        {formatUpdatedAt(board.updatedAt)}
+                                        {formatDashboardDateTime(board.updatedAt)}
                                     </p>
                                 </div>
                             </div>

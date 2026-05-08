@@ -414,6 +414,7 @@ export interface Database {
                     board_id: string;
                     applicant_id: string;
                     board_slot_id: string | null;
+                    team_id: string | null;
                     selected_role: string;
                     message: string;
                     status: string;
@@ -427,6 +428,7 @@ export interface Database {
                     board_id: string;
                     applicant_id: string;
                     board_slot_id?: string | null;
+                    team_id?: string | null;
                     selected_role: string;
                     message: string;
                     status?: string;
@@ -440,6 +442,7 @@ export interface Database {
                     board_id?: string;
                     applicant_id?: string;
                     board_slot_id?: string | null;
+                    team_id?: string | null;
                     selected_role?: string;
                     message?: string;
                     status?: string;
@@ -566,6 +569,58 @@ export interface Database {
                     last_reminded_at?: string | null;
                     created_at?: string;
                     updated_at?: string;
+                }
+            >;
+            team_resources: Table<
+                {
+                    id: string;
+                    team_id: string;
+                    resource_type: string;
+                    label: string;
+                    url: string | null;
+                    created_at: string;
+                },
+                {
+                    id?: string;
+                    team_id: string;
+                    resource_type: string;
+                    label: string;
+                    url?: string | null;
+                    created_at?: string;
+                },
+                {
+                    id?: string;
+                    team_id?: string;
+                    resource_type?: string;
+                    label?: string;
+                    url?: string | null;
+                    created_at?: string;
+                }
+            >;
+            team_activity_events: Table<
+                {
+                    id: string;
+                    team_id: string;
+                    actor_id: string | null;
+                    event_type: string;
+                    payload: Json;
+                    created_at: string;
+                },
+                {
+                    id?: string;
+                    team_id: string;
+                    actor_id?: string | null;
+                    event_type: string;
+                    payload?: Json;
+                    created_at?: string;
+                },
+                {
+                    id?: string;
+                    team_id?: string;
+                    actor_id?: string | null;
+                    event_type?: string;
+                    payload?: Json;
+                    created_at?: string;
                 }
             >;
             competition_history: Table<
@@ -707,6 +762,29 @@ export interface Database {
                     updated_at?: string;
                 }
             >;
+            privacy_audit_events: Table<
+                {
+                    id: string;
+                    user_id: string;
+                    event_type: string;
+                    payload: Json;
+                    created_at: string;
+                },
+                {
+                    id?: string;
+                    user_id: string;
+                    event_type: string;
+                    payload?: Json;
+                    created_at?: string;
+                },
+                {
+                    id?: string;
+                    user_id?: string;
+                    event_type?: string;
+                    payload?: Json;
+                    created_at?: string;
+                }
+            >;
             user_notifications: Table<
                 {
                     id: string;
@@ -741,7 +819,20 @@ export interface Database {
             >;
         };
         Views: Record<string, never>;
-        Functions: Record<string, never>;
+        Functions: {
+            accept_board_application: {
+                Args: {
+                    p_application_id: string;
+                };
+                Returns: {
+                    accepted_applicant_id: string;
+                    accepted_board_id: string;
+                    accepted_selected_role: string;
+                    accepted_team_created: boolean;
+                    accepted_team_id: string;
+                }[];
+            };
+        };
         Enums: Record<string, never>;
         CompositeTypes: Record<string, never>;
     };

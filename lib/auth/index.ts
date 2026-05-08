@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { getProfileRecord } from "@/lib/dashboard/data";
+import { getProfileRecord } from "@/lib/profile/data";
 import type { ProfileRecord } from "@/lib/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 

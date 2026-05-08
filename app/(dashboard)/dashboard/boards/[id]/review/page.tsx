@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import BoardReviewList from "@/components/dashboard/BoardReviewList";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import DashboardRealtimeRefresh from "@/components/dashboard/DashboardRealtimeRefresh";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getBoardApplicationsForBoard, getBoardById, getCandidateDiscovery } from "@/lib/dashboard/data";
 
@@ -17,20 +19,34 @@ export default async function BoardReviewPage({ params }: { params: Promise<{ id
 
     return (
         <div className="space-y-6">
+            <DashboardRealtimeRefresh
+                scopeKey={`board-review-${board.id}`}
+                subscriptions={[
+                    {
+                        event: "*",
+                        filter: `board_id=eq.${board.id}`,
+                        table: "board_applications",
+                    },
+                ]}
+            />
             <div className="space-y-4">
                 <div className="section-kicker">Review pelamar</div>
                 <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">PILAH PELAMAR UNTUK {board.title}</h1>
             </div>
 
             {applications.length > 0 ? (
-                <BoardReviewList applications={applications} candidatesById={candidatesById} />
+                <BoardReviewList
+                    applications={applications}
+                    boardRequiredSkills={board.requiredSkills}
+                    candidatesById={candidatesById}
+                />
             ) : (
-                <div className="brutal-panel bg-[var(--tm-paper-strong)] p-8">
-                    <p className="display-font text-4xl leading-none">Belum ada pelamar masuk</p>
-                    <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
-                        Setelah kandidat mulai melamar, Anda bisa menerima, menolak, atau menyimpan mereka dari halaman ini.
-                    </p>
-                </div>
+                <DashboardEmptyState
+                    actionHref={`/dashboard/boards/${board.id}`}
+                    actionLabel="Lihat board"
+                    title="Belum ada pelamar masuk"
+                    body="Setelah kandidat mulai melamar, Anda bisa menerima, menolak, atau menyimpan mereka dari halaman ini."
+                />
             )}
         </div>
     );

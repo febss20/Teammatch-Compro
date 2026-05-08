@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { updateCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import {
@@ -11,6 +11,12 @@ import {
 } from "@/lib/types";
 import { boardVisibilityLabels, competitionTypeLabels } from "@/lib/platform";
 
+interface RoleSlotInput {
+    id: string;
+    roleName: string;
+    slotCount: string;
+}
+
 const statusLabels: Record<(typeof competitionIdeaBoardStatusOptions)[number], string> = {
     open: "Aktif",
     closed: "Ditutup",
@@ -20,33 +26,88 @@ function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: s
     return fieldErrors[fieldName]?.[0] ?? null;
 }
 
-function getSelectValue(competitionType: string) {
+function getSelectValue(competitionType: string): string {
     return competitionTypeOptions.includes(competitionType as (typeof competitionTypeOptions)[number])
         ? competitionType
         : "others";
 }
 
-function getOtherValue(competitionType: string) {
+function getOtherValue(competitionType: string): string {
     return getSelectValue(competitionType) === "others" ? competitionType : "";
 }
 
-function getDateValue(deadline: string) {
+function getDateValue(deadline: string): string {
     return deadline.slice(0, 10);
 }
 
-function getSkillsValue(requiredSkills: string[]) {
+function getSkillsValue(requiredSkills: string[]): string {
     return requiredSkills.join(", ");
+}
+
+function createInitialSlots(board: CompetitionIdeaBoardRecord): RoleSlotInput[] {
+    if (board.slots.length > 0) {
+        return board.slots.map((slot) => ({
+            id: crypto.randomUUID(),
+            roleName: slot.roleName,
+            slotCount: String(slot.slotCount),
+        }));
+    }
+
+    return [
+        {
+            id: crypto.randomUUID(),
+            roleName: "Frontend Engineer",
+            slotCount: "1",
+        },
+    ];
+}
+
+function serializeSlots(slots: RoleSlotInput[]): string {
+    return JSON.stringify(
+        slots.map((slot) => ({
+            roleName: slot.roleName,
+            slotCount: Number(slot.slotCount),
+        })),
+    );
+}
+
+function updateSlotValue(
+    slots: RoleSlotInput[],
+    slotId: string,
+    key: "roleName" | "slotCount",
+    value: string,
+): RoleSlotInput[] {
+    return slots.map((slot) => (slot.id === slotId ? { ...slot, [key]: value } : slot));
+}
+
+function removeSlot(slots: RoleSlotInput[], slotId: string): RoleSlotInput[] {
+    if (slots.length <= 1) {
+        return slots;
+    }
+
+    return slots.filter((slot) => slot.id !== slotId);
 }
 
 export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRecord }) {
     const initialCompetitionType = getSelectValue(board.competitionType);
     const [selectedCompetitionType, setSelectedCompetitionType] = useState<string>(initialCompetitionType);
+    const [slots, setSlots] = useState<RoleSlotInput[]>(createInitialSlots(board));
     const [state, formAction, pending] = useActionState(updateCompetitionIdeaBoard, competitionIdeaBoardInitialState);
+
+    const previewSkills = useMemo(
+        () =>
+            getSkillsValue(board.requiredSkills)
+                .split(",")
+                .map((skill) => skill.trim())
+                .filter((skill) => skill.length > 0),
+        [board.requiredSkills],
+    );
 
     return (
         <form action={formAction} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
                 <input type="hidden" name="id" value={board.id} />
+                <input type="hidden" name="slots_json" value={serializeSlots(slots)} />
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
@@ -63,6 +124,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             </p>
                         )}
                     </div>
+
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="summary" className="brutal-label">
                             Ringkasan
@@ -76,6 +138,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             disabled={pending}
                         />
                     </div>
+
                     <div className="grid gap-2">
                         <label htmlFor="competition_type_select" className="brutal-label">
                             Jenis Lomba
@@ -95,6 +158,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             ))}
                         </select>
                     </div>
+
                     <div className="grid gap-2">
                         <label htmlFor="status" className="brutal-label">
                             Status Board
@@ -113,6 +177,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             ))}
                         </select>
                     </div>
+
                     <div className="grid gap-2">
                         <label htmlFor="deadline" className="brutal-label">
                             Deadline
@@ -126,6 +191,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             disabled={pending}
                         />
                     </div>
+
                     <div className="grid gap-2">
                         <label htmlFor="visibility" className="brutal-label">
                             Visibilitas
@@ -144,6 +210,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             ))}
                         </select>
                     </div>
+
                     {selectedCompetitionType === "others" && (
                         <div className="grid gap-2 md:col-span-2">
                             <label htmlFor="competition_type_other" className="brutal-label">
@@ -158,6 +225,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             />
                         </div>
                     )}
+
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="description" className="brutal-label">
                             Deskripsi Lengkap
@@ -171,6 +239,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             disabled={pending}
                         />
                     </div>
+
                     <div className="grid gap-2 md:col-span-2">
                         <label htmlFor="required_skills" className="brutal-label">
                             Skill Dibutuhkan
@@ -183,59 +252,107 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             disabled={pending}
                         />
                     </div>
-                    <div className="grid gap-2">
-                        <label htmlFor="slot_role_1" className="brutal-label">
-                            Peran Utama
-                        </label>
-                        <input
-                            id="slot_role_1"
-                            name="slot_role_1"
-                            className="brutal-input"
-                            defaultValue={board.slots[0]?.roleName ?? "Frontend Engineer"}
-                            disabled={pending}
-                        />
+
+                    <div className="grid gap-4 md:col-span-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <label className="brutal-label">Daftar Peran</label>
+                            <button
+                                type="button"
+                                className="brutal-button-secondary"
+                                onClick={() =>
+                                    setSlots((current) => [
+                                        ...current,
+                                        {
+                                            id: crypto.randomUUID(),
+                                            roleName: "",
+                                            slotCount: "1",
+                                        },
+                                    ])
+                                }
+                            >
+                                Tambah Peran
+                            </button>
+                        </div>
+
+                        {slots.map((slot, index) => (
+                            <div key={slot.id} className="brutal-panel-soft grid gap-4 p-4 md:grid-cols-[1fr_180px_auto]">
+                                <div className="grid gap-2">
+                                    <label htmlFor={`slot-role-${slot.id}`} className="brutal-label">
+                                        Peran {index + 1}
+                                    </label>
+                                    <input
+                                        id={`slot-role-${slot.id}`}
+                                        className="brutal-input"
+                                        value={slot.roleName}
+                                        placeholder="Contoh: Frontend Engineer"
+                                        disabled={pending}
+                                        onChange={(event) =>
+                                            setSlots((current) =>
+                                                updateSlotValue(current, slot.id, "roleName", event.target.value),
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <label htmlFor={`slot-count-${slot.id}`} className="brutal-label">
+                                        Jumlah Slot
+                                    </label>
+                                    <input
+                                        id={`slot-count-${slot.id}`}
+                                        type="number"
+                                        min={1}
+                                        max={10}
+                                        className="brutal-input"
+                                        value={slot.slotCount}
+                                        disabled={pending}
+                                        onChange={(event) =>
+                                            setSlots((current) =>
+                                                updateSlotValue(current, slot.id, "slotCount", event.target.value),
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                <div className="flex items-end">
+                                    <button
+                                        type="button"
+                                        className="brutal-button-danger w-full"
+                                        disabled={pending || slots.length <= 1}
+                                        onClick={() => setSlots((current) => removeSlot(current, slot.id))}
+                                    >
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        {firstError(state.fieldErrors, "slots_json") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "slots_json")}
+                            </p>
+                        )}
                     </div>
-                    <div className="grid gap-2">
-                        <label htmlFor="slot_count_1" className="brutal-label">
-                            Jumlah Slot Utama
-                        </label>
-                        <input
-                            id="slot_count_1"
-                            name="slot_count_1"
-                            type="number"
-                            min={1}
-                            max={10}
-                            className="brutal-input"
-                            defaultValue={board.slots[0]?.slotCount ?? 1}
-                            disabled={pending}
-                        />
+                </div>
+
+                <div className="brutal-panel bg-[var(--tm-line)] p-5 text-[var(--tm-paper-strong)]">
+                    <p className="display-font text-3xl leading-none">Preview Peran</p>
+                    <div className="mt-5 grid gap-3">
+                        {slots.map((slot) => (
+                            <div key={slot.id} className="brutal-panel-soft p-4 text-[var(--tm-line)]">
+                                <p className="display-font text-xl leading-none">{slot.roleName || "Peran baru"}</p>
+                                <p className="mt-2 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                                    {slot.slotCount || "1"} slot
+                                </p>
+                            </div>
+                        ))}
                     </div>
-                    <div className="grid gap-2">
-                        <label htmlFor="slot_role_2" className="brutal-label">
-                            Peran Tambahan
-                        </label>
-                        <input
-                            id="slot_role_2"
-                            name="slot_role_2"
-                            className="brutal-input"
-                            defaultValue={board.slots[1]?.roleName ?? ""}
-                            disabled={pending}
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <label htmlFor="slot_count_2" className="brutal-label">
-                            Jumlah Slot Tambahan
-                        </label>
-                        <input
-                            id="slot_count_2"
-                            name="slot_count_2"
-                            type="number"
-                            min={1}
-                            max={10}
-                            className="brutal-input"
-                            defaultValue={board.slots[1]?.slotCount ?? 1}
-                            disabled={pending}
-                        />
+                    <div className="mt-5 flex flex-wrap gap-2">
+                        {previewSkills.map((skill) => (
+                            <span key={skill} className="brutal-chip bg-white text-[var(--tm-line)]">
+                                {skill}
+                            </span>
+                        ))}
                     </div>
                 </div>
 

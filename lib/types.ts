@@ -113,6 +113,20 @@ export interface CompetitionIdeaBoardRecord {
     slots: BoardSlotRecord[];
 }
 
+export interface BoardDraftRecord {
+    id: string;
+    userId: string;
+    title: string | null;
+    summary: string | null;
+    competitionType: string | null;
+    description: string | null;
+    deadline: string | null;
+    requiredSkills: string[];
+    visibility: BoardVisibility;
+    slots: BoardSlotRecord[];
+    updatedAt: string;
+}
+
 export interface BoardSlotRecord {
     id: string;
     boardId: string;
@@ -125,6 +139,8 @@ export interface JoinRequestRecord {
     id: string;
     requesterId: string;
     targetProfileId: string;
+    requesterName: string | null;
+    targetProfileName: string | null;
     boardId: string | null;
     selectedRole: string;
     message: string;
@@ -140,6 +156,7 @@ export interface BoardApplicationRecord {
     boardId: string;
     applicantId: string;
     boardSlotId: string | null;
+    teamId: string | null;
     selectedRole: string;
     message: string;
     status: BoardApplicationStatus;
@@ -156,6 +173,12 @@ export interface TeamRecord {
     name: string;
     competitionName: string | null;
     deadline: string | null;
+}
+
+export interface TeamListItemRecord extends TeamRecord {
+    confirmedMembersCount: number;
+    membersCount: number;
+    selfCommitmentStatus: TeamMemberStatus | null;
 }
 
 export interface TeamMemberRecord {
@@ -189,6 +212,25 @@ export interface TeamResultRecord {
     createdAt: string;
 }
 
+export interface TeamResourceRecord {
+    id: string;
+    teamId: string;
+    resourceType: string;
+    label: string;
+    url: string | null;
+    createdAt: string;
+}
+
+export interface TeamActivityEventRecord {
+    id: string;
+    teamId: string;
+    actorId: string | null;
+    actorName: string | null;
+    eventType: string;
+    payload: Record<string, unknown>;
+    createdAt: string;
+}
+
 export interface TestimonialRecord {
     id: string;
     teamId: string;
@@ -212,10 +254,7 @@ export type CompetitionIdeaBoardFieldName =
     | "required_skills"
     | "status"
     | "visibility"
-    | "slot_role_1"
-    | "slot_count_1"
-    | "slot_role_2"
-    | "slot_count_2"
+    | "slots_json"
     | "website";
 
 export type LoginFieldName = "email" | "password" | "next";
@@ -246,6 +285,7 @@ export type CommitmentFieldName = "team_member_id" | "hours_per_week";
 export type TeamRenameFieldName = "team_id" | "team_name";
 export type TeamResultFieldName = "team_id" | "result_summary" | "competition_ended_at";
 export type TestimonialFieldName = "team_id" | "target_profile_id" | "rating" | "body" | "testimonial_id";
+export type TeamResourceFieldName = "team_id" | "resource_type" | "label" | "url";
 
 export interface FormActionState<FieldName extends string> {
     success: boolean;

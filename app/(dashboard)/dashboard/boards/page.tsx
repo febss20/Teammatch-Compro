@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BoardDiscoveryList from "@/components/dashboard/BoardDiscoveryList";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getOwnBoards, getPublicBoards } from "@/lib/dashboard/data";
 
@@ -56,7 +57,7 @@ export default async function BoardsPage({
                             {ownBoards.slice(0, 5).map((board) => (
                                 <Link
                                     key={board.id}
-                                    href={`/dashboard/boards/${board.id}/review`}
+                                    href={`/dashboard/boards/${board.id}`}
                                     className="brutal-panel-soft block p-4"
                                 >
                                     <p className="display-font text-2xl leading-none">{board.title}</p>
@@ -64,7 +65,12 @@ export default async function BoardsPage({
                                 </Link>
                             ))}
                             {ownBoards.length === 0 && (
-                                <p className="text-sm text-[var(--tm-muted)]">Belum ada board milik Anda.</p>
+                                <DashboardEmptyState
+                                    actionHref="/dashboard/boards/new"
+                                    actionLabel="Publikasikan board"
+                                    title="Belum ada board milik Anda"
+                                    body="Board yang Anda publish akan muncul di panel ini untuk dipantau dan direview."
+                                />
                             )}
                         </div>
                     </div>

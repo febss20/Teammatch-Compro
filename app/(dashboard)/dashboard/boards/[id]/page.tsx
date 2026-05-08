@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BoardApplicationForm from "@/components/dashboard/BoardApplicationForm";
+import { closeBoardRecruitment } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getBoardById } from "@/lib/dashboard/data";
 
@@ -46,7 +47,9 @@ export default async function BoardDetailPage({ params }: { params: Promise<{ id
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
                             <p className="display-font text-3xl leading-none">Deadline</p>
-                            <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">{formatDeadline(board.deadline)}</p>
+                            <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
+                                {formatDeadline(board.deadline)}
+                            </p>
                         </div>
                         <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
                             <p className="display-font text-3xl leading-none">Skill Dibutuhkan</p>
@@ -79,12 +82,32 @@ export default async function BoardDetailPage({ params }: { params: Promise<{ id
                     {board.userId === user.id ? (
                         <div className="brutal-panel grid gap-4 bg-[var(--tm-paper-strong)] p-5">
                             <p className="display-font text-3xl leading-none">Aksi Creator</p>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="brutal-panel-soft p-4">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Status board</p>
+                                    <p className="mt-2 display-font text-2xl leading-none">
+                                        {board.status === "closed" ? "Rekrutmen ditutup" : "Rekrutmen aktif"}
+                                    </p>
+                                </div>
+                                <div className="brutal-panel-soft p-4">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Jumlah peran</p>
+                                    <p className="mt-2 display-font text-2xl leading-none">{board.slots.length} slot role</p>
+                                </div>
+                            </div>
                             <Link href={`/dashboard/boards/${board.id}/edit`} className="brutal-button-secondary">
                                 Edit posting
                             </Link>
                             <Link href={`/dashboard/boards/${board.id}/review`} className="brutal-button">
                                 Review pelamar
                             </Link>
+                            {board.status !== "closed" && (
+                                <form action={closeBoardRecruitment}>
+                                    <input type="hidden" name="id" value={board.id} />
+                                    <button type="submit" className="brutal-button-danger w-full">
+                                        Tutup rekrutmen
+                                    </button>
+                                </form>
+                            )}
                         </div>
                     ) : (
                         <BoardApplicationForm board={board} />

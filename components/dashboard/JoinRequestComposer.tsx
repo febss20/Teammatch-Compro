@@ -3,15 +3,12 @@
 import { useActionState } from "react";
 import { sendJoinRequest } from "@/app/(dashboard)/dashboard/actions";
 import { joinRequestInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
 import { boardRoleOptions } from "@/lib/types";
 
 interface JoinRequestComposerProps {
     boardId?: string | null;
     targetProfileId: string;
-}
-
-function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string) {
-    return fieldErrors[fieldName]?.[0] ?? null;
 }
 
 export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRequestComposerProps) {
@@ -42,9 +39,9 @@ export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRe
                         </option>
                     ))}
                 </select>
-                {firstError(state.fieldErrors, "selected_role") && (
+                {getFirstFieldError(state.fieldErrors, "selected_role") && (
                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                        {firstError(state.fieldErrors, "selected_role")}
+                        {getFirstFieldError(state.fieldErrors, "selected_role")}
                     </p>
                 )}
             </div>
@@ -62,8 +59,10 @@ export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRe
                     disabled={pending}
                 />
                 <p className="text-sm text-[var(--tm-muted)]">Maksimal 150 karakter.</p>
-                {firstError(state.fieldErrors, "message") && (
-                    <p className="text-sm font-semibold text-[var(--tm-danger)]">{firstError(state.fieldErrors, "message")}</p>
+                {getFirstFieldError(state.fieldErrors, "message") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "message")}
+                    </p>
                 )}
             </div>
 

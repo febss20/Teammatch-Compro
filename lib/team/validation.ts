@@ -16,7 +16,11 @@ export const teamRenameSchema = z.object({
 
 export const teamResultSchema = z.object({
     team_id: z.uuid("Tim tidak valid."),
-    result_summary: z.string().trim().min(10, "Ringkasan hasil minimal 10 karakter.").max(200, "Ringkasan hasil maksimal 200 karakter."),
+    result_summary: z
+        .string()
+        .trim()
+        .min(10, "Ringkasan hasil minimal 10 karakter.")
+        .max(200, "Ringkasan hasil maksimal 200 karakter."),
     competition_ended_at: z.iso.date("Tanggal selesai lomba tidak valid."),
 });
 
@@ -25,7 +29,24 @@ export const testimonialSchema = z.object({
     target_profile_id: z.uuid("Target testimonial tidak valid."),
     rating: z.coerce.number().int("Rating harus bilangan bulat.").min(1, "Rating minimal 1").max(5, "Rating maksimal 5"),
     body: z.string().trim().min(10, "Testimoni minimal 10 karakter.").max(300, "Testimoni maksimal 300 karakter."),
-    testimonial_id: z.preprocess((value) => (typeof value === "string" && value.length > 0 ? value : undefined), z.uuid().optional()),
+    testimonial_id: z.preprocess(
+        (value) => (typeof value === "string" && value.length > 0 ? value : undefined),
+        z.uuid().optional(),
+    ),
+});
+
+export const teamResourceSchema = z.object({
+    team_id: z.uuid("Tim tidak valid."),
+    resource_type: z
+        .string()
+        .trim()
+        .min(2, "Jenis resource minimal 2 karakter.")
+        .max(30, "Jenis resource maksimal 30 karakter."),
+    label: z.string().trim().min(3, "Label resource minimal 3 karakter.").max(80, "Label resource maksimal 80 karakter."),
+    url: z.preprocess(
+        (value) => (typeof value === "string" ? value.trim() : ""),
+        z.string().url("URL resource tidak valid.").or(z.literal("")),
+    ),
 });
 
 export function safeParseCommitment(formData: FormData) {
@@ -57,5 +78,14 @@ export function safeParseTestimonial(formData: FormData) {
         rating: formData.get("rating"),
         body: formData.get("body"),
         testimonial_id: formData.get("testimonial_id"),
+    });
+}
+
+export function safeParseTeamResource(formData: FormData) {
+    return teamResourceSchema.safeParse({
+        team_id: formData.get("team_id"),
+        resource_type: formData.get("resource_type"),
+        label: formData.get("label"),
+        url: formData.get("url"),
     });
 }

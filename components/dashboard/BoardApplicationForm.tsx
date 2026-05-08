@@ -3,14 +3,11 @@
 import { useActionState } from "react";
 import { applyToBoard } from "@/app/(dashboard)/dashboard/actions";
 import { boardApplicationInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
 import type { BoardSlotRecord, CompetitionIdeaBoardRecord } from "@/lib/types";
 
 interface BoardApplicationFormProps {
     board: CompetitionIdeaBoardRecord;
-}
-
-function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string) {
-    return fieldErrors[fieldName]?.[0] ?? null;
 }
 
 export default function BoardApplicationForm({ board }: BoardApplicationFormProps) {
@@ -41,9 +38,9 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
                         </option>
                     ))}
                 </select>
-                {firstError(state.fieldErrors, "board_slot_id") && (
+                {getFirstFieldError(state.fieldErrors, "board_slot_id") && (
                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                        {firstError(state.fieldErrors, "board_slot_id")}
+                        {getFirstFieldError(state.fieldErrors, "board_slot_id")}
                     </p>
                 )}
             </div>
