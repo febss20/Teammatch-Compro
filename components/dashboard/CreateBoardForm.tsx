@@ -1,62 +1,268 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { createCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { discardBoardDraft, publishBoardFromDraft, saveBoardDraft } from "@/app/(dashboard)/dashboard/actions";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
-import { boardRoleOptions, boardVisibilityOptions, competitionTypeOptions } from "@/lib/types";
+import { boardRoleOptions, competitionTypeOptions, type BoardDraftRecord, type CompetitionTypeRecord } from "@/lib/types";
 import { boardVisibilityLabels, competitionTypeLabels } from "@/lib/platform";
+
+interface CreateBoardFormProps {
+    competitionTypes: CompetitionTypeRecord[];
+    draft: BoardDraftRecord | null;
+}
+
+interface RoleSlotInput {
+    id: string;
+    roleName: string;
+    slotCount: string;
+}
+
+interface BoardComposerState {
+    competitionTypeOther: string;
+    deadline: string;
+    description: string;
+    requiredSkills: string;
+    selectedCompetitionType: string;
+    slots: RoleSlotInput[];
+    summary: string;
+    title: string;
+    visibility: "public" | "private";
+}
 
 function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string): string | null {
     return fieldErrors[fieldName]?.[0] ?? null;
 }
 
-export default function CreateBoardForm() {
-    const [step, setStep] = useState(1);
-    const [selectedCompetitionType, setSelectedCompetitionType] = useState<string>("hackathon");
-    const [preview, setPreview] = useState<{
-        title: string;
-        summary: string;
-        description: string;
-        requiredSkills: string;
-        roleOne: string;
-        roleTwo: string;
-        visibility: string;
-    }>({
-        title: "",
-        summary: "",
-        description: "",
-        requiredSkills: "",
-        roleOne: boardRoleOptions[0],
-        roleTwo: "",
-        visibility: "public",
-    });
-    const [state, formAction, pending] = useActionState(createCompetitionIdeaBoard, competitionIdeaBoardInitialState);
+function createSlotId(): string {
+    return crypto.randomUUID();
+}
+
+function resolveInitialCompetitionType(competitionType: string | null): string {
+    if (!competitionType) {
+        return "hackathon";
+    }
+
+    if (competitionTypeOptions.includes(competitionType as (typeof competitionTypeOptions)[number])) {
+        return competitionType;
+    }
+
+    return "others";
+}
+
+function toDateInputValue(deadline: string | null): string {
+    if (!deadline) {
+        return "";
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+        return deadline;
+    }
+
+    return new Date(deadline).toISOString().slice(0, 10);
+}
+
+function createEmptySlot(roleName: string): RoleSlotInput {
+    return {
+        id: createSlotId(),
+        roleName,
+        slotCount: "1",
+    };
+}
+
+function createInitialSlots(draft: BoardDraftRecord | null): RoleSlotInput[] {
+    if (draft && draft.slots.length > 0) {
+        return draft.slots.map((slot) => ({
+            id: createSlotId(),
+            roleName: slot.roleName,
+            slotCount: String(slot.slotCount),
+        }));
+    }
+
+    return [createEmptySlot(boardRoleOptions[0])];
+}
+
+function createInitialComposerState(draft: BoardDraftRecord | null): BoardComposerState {
+    const selectedCompetitionType = resolveInitialCompetitionType(draft?.competitionType ?? null);
+
+    return {
+        competitionTypeOther: selectedCompetitionType === "others" ? (draft?.competitionType ?? "") : "",
+        deadline: toDateInputValue(draft?.deadline ?? null),
+        description: draft?.description ?? "",
+        requiredSkills: draft?.requiredSkills?.join(", ") ?? "",
+        selectedCompetitionType,
+        slots: createInitialSlots(draft),
+        summary: draft?.summary ?? "",
+        title: draft?.title ?? "",
+        visibility: draft?.visibility ?? "public",
+    };
+}
+
+function createEmptyComposerState(): BoardComposerState {
+    return createInitialComposerState(null);
+}
+
+function serializeSlots(slots: RoleSlotInput[]): string {
+    return JSON.stringify(
+        slots.map((slot) => ({
+            roleName: slot.roleName,
+            slotCount: Number(slot.slotCount),
+        })),
+    );
+}
+
+function buildComposerFormData(state: BoardComposerState): FormData {
+    const formData = new FormData();
+    formData.set("title", state.title);
+    formData.set("summary", state.summary);
+    formData.set("competition_type_select", state.selectedCompetitionType);
+    formData.set("competition_type_other", state.competitionTypeOther);
+    formData.set("description", state.description);
+    formData.set("deadline", state.deadline);
+    formData.set("required_skills", state.requiredSkills);
+    formData.set("visibility", state.visibility);
+    formData.set("slots_json", serializeSlots(state.slots));
+    formData.set("website", "");
+    return formData;
+}
+
+function createSuggestedSkills(
+    competitionTypes: CompetitionTypeRecord[],
+    selectedCompetitionType: string,
+    requiredSkills: string,
+): string[] {
+    const selectedCompetitionRecord =
+        competitionTypes.find((competitionType) => competitionType.slug === selectedCompetitionType) ?? null;
+    if (!selectedCompetitionRecord) {
+        return [];
+    }
+
+    const currentSkills = new Set(
+        requiredSkills
+            .split(",")
+            .map((skill) => skill.trim().toLowerCase())
+            .filter((skill) => skill.length > 0),
+    );
+
+    return selectedCompetitionRecord.recommendedSkills.filter((skill) => !currentSkills.has(skill.trim().toLowerCase()));
+}
+
+function appendSuggestedSkill(requiredSkills: string, suggestedSkill: string): string {
+    if (requiredSkills.trim().length === 0) {
+        return suggestedSkill;
+    }
+
+    return `${requiredSkills}, ${suggestedSkill}`;
+}
+
+function updateSlotValue(
+    slots: RoleSlotInput[],
+    slotId: string,
+    key: "roleName" | "slotCount",
+    value: string,
+): RoleSlotInput[] {
+    return slots.map((slot) => (slot.id === slotId ? { ...slot, [key]: value } : slot));
+}
+
+function removeSlot(slots: RoleSlotInput[], slotId: string): RoleSlotInput[] {
+    if (slots.length <= 1) {
+        return slots;
+    }
+
+    return slots.filter((slot) => slot.id !== slotId);
+}
+
+export default function CreateBoardForm({ competitionTypes, draft }: CreateBoardFormProps) {
+    const [step, setStep] = useState<number>(1);
+    const [composerState, setComposerState] = useState<BoardComposerState>(createInitialComposerState(draft));
+    const [draftFeedback, setDraftFeedback] = useState<string>(draft ? "Draft sebelumnya dipulihkan." : "Mulai board baru.");
+    const lastAutosavedSnapshotRef = useRef<string>(JSON.stringify(createInitialComposerState(draft)));
+    const [state, formAction, pending] = useActionState(publishBoardFromDraft, competitionIdeaBoardInitialState);
 
     const previewSkills = useMemo(
         () =>
-            preview.requiredSkills
+            composerState.requiredSkills
                 .split(",")
                 .map((skill) => skill.trim())
-                .filter(Boolean),
-        [preview.requiredSkills],
+                .filter((skill) => skill.length > 0),
+        [composerState.requiredSkills],
     );
 
+    const suggestedSkills = useMemo(
+        () => createSuggestedSkills(competitionTypes, composerState.selectedCompetitionType, composerState.requiredSkills),
+        [competitionTypes, composerState.requiredSkills, composerState.selectedCompetitionType],
+    );
+
+    useEffect(() => {
+        const nextSnapshot = JSON.stringify(composerState);
+        if (nextSnapshot === lastAutosavedSnapshotRef.current) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            startTransition(async () => {
+                try {
+                    await saveBoardDraft(buildComposerFormData(composerState));
+                    lastAutosavedSnapshotRef.current = JSON.stringify(composerState);
+                    setDraftFeedback("Draft tersimpan otomatis.");
+                } catch (error) {
+                    setDraftFeedback(error instanceof Error ? error.message : "Draft gagal disimpan.");
+                }
+            });
+        }, 650);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [composerState]);
+
+    function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+        event.preventDefault();
+
+        const formData = buildComposerFormData(composerState);
+        startTransition(() => {
+            void formAction(formData);
+        });
+    }
+
     return (
-        <form action={formAction} className="brutal-stack">
+        <form onSubmit={handleSubmit} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
+                <input type="hidden" name="slots_json" value={serializeSlots(composerState.slots)} />
 
-                <div className="flex flex-wrap gap-3">
-                    {[1, 2].map((stepIndex) => (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-3">
+                        {[1, 2].map((stepIndex) => (
+                            <button
+                                key={stepIndex}
+                                type="button"
+                                onClick={() => setStep(stepIndex)}
+                                className={`brutal-chip px-4 py-3 text-base ${step === stepIndex ? "bg-[var(--tm-accent)]" : "bg-white"}`}
+                            >
+                                Step {stepIndex}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <span className="brutal-chip bg-white text-sm">{draftFeedback}</span>
                         <button
-                            key={stepIndex}
                             type="button"
-                            onClick={() => setStep(stepIndex)}
-                            className={`brutal-chip px-4 py-3 text-base ${step === stepIndex ? "bg-[var(--tm-accent)]" : "bg-white"}`}
+                            className="brutal-button-secondary"
+                            disabled={pending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    await discardBoardDraft();
+                                    const emptyState = createEmptyComposerState();
+                                    setComposerState(emptyState);
+                                    lastAutosavedSnapshotRef.current = JSON.stringify(emptyState);
+                                    setDraftFeedback("Draft dibuang. Anda sedang memulai board baru.");
+                                    setStep(1);
+                                });
+                            }}
                         >
-                            Step {stepIndex}
+                            Buang draft
                         </button>
-                    ))}
+                    </div>
                 </div>
 
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
@@ -77,9 +283,12 @@ export default function CreateBoardForm() {
                                     id="title"
                                     name="title"
                                     required
+                                    value={composerState.title}
                                     className="brutal-input"
                                     disabled={pending}
-                                    onChange={(event) => setPreview((current) => ({ ...current, title: event.target.value }))}
+                                    onChange={(event) =>
+                                        setComposerState((current) => ({ ...current, title: event.target.value }))
+                                    }
                                 />
                                 {firstError(state.fieldErrors, "title") && (
                                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
@@ -87,6 +296,7 @@ export default function CreateBoardForm() {
                                     </p>
                                 )}
                             </div>
+
                             <div className="grid gap-2 md:col-span-2">
                                 <label htmlFor="summary" className="brutal-label">
                                     Ringkasan Singkat
@@ -96,9 +306,12 @@ export default function CreateBoardForm() {
                                     name="summary"
                                     rows={3}
                                     required
+                                    value={composerState.summary}
                                     className="brutal-textarea"
                                     disabled={pending}
-                                    onChange={(event) => setPreview((current) => ({ ...current, summary: event.target.value }))}
+                                    onChange={(event) =>
+                                        setComposerState((current) => ({ ...current, summary: event.target.value }))
+                                    }
                                 />
                                 {firstError(state.fieldErrors, "summary") && (
                                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
@@ -106,6 +319,7 @@ export default function CreateBoardForm() {
                                     </p>
                                 )}
                             </div>
+
                             <div className="grid gap-2">
                                 <label htmlFor="competition_type_select" className="brutal-label">
                                     Jenis Lomba
@@ -114,9 +328,16 @@ export default function CreateBoardForm() {
                                     id="competition_type_select"
                                     name="competition_type_select"
                                     className="brutal-select"
-                                    value={selectedCompetitionType}
+                                    value={composerState.selectedCompetitionType}
                                     disabled={pending}
-                                    onChange={(event) => setSelectedCompetitionType(event.target.value)}
+                                    onChange={(event) =>
+                                        setComposerState((current) => ({
+                                            ...current,
+                                            selectedCompetitionType: event.target.value,
+                                            competitionTypeOther:
+                                                event.target.value === "others" ? current.competitionTypeOther : "",
+                                        }))
+                                    }
                                 >
                                     {competitionTypeOptions.map((option) => (
                                         <option key={option} value={option}>
@@ -125,6 +346,7 @@ export default function CreateBoardForm() {
                                     ))}
                                 </select>
                             </div>
+
                             <div className="grid gap-2">
                                 <label htmlFor="deadline" className="brutal-label">
                                     Deadline
@@ -134,11 +356,21 @@ export default function CreateBoardForm() {
                                     name="deadline"
                                     type="date"
                                     className="brutal-input"
+                                    value={composerState.deadline}
                                     disabled={pending}
                                     required
+                                    onChange={(event) =>
+                                        setComposerState((current) => ({ ...current, deadline: event.target.value }))
+                                    }
                                 />
+                                {firstError(state.fieldErrors, "deadline") && (
+                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                        {firstError(state.fieldErrors, "deadline")}
+                                    </p>
+                                )}
                             </div>
-                            {selectedCompetitionType === "others" && (
+
+                            {composerState.selectedCompetitionType === "others" && (
                                 <div className="grid gap-2 md:col-span-2">
                                     <label htmlFor="competition_type_other" className="brutal-label">
                                         Jenis Lomba Lainnya
@@ -147,10 +379,23 @@ export default function CreateBoardForm() {
                                         id="competition_type_other"
                                         name="competition_type_other"
                                         className="brutal-input"
+                                        value={composerState.competitionTypeOther}
                                         disabled={pending}
+                                        onChange={(event) =>
+                                            setComposerState((current) => ({
+                                                ...current,
+                                                competitionTypeOther: event.target.value,
+                                            }))
+                                        }
                                     />
+                                    {firstError(state.fieldErrors, "competition_type_other") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "competition_type_other")}
+                                        </p>
+                                    )}
                                 </div>
                             )}
+
                             <div className="grid gap-2 md:col-span-2">
                                 <label htmlFor="description" className="brutal-label">
                                     Deskripsi Lengkap
@@ -160,12 +405,18 @@ export default function CreateBoardForm() {
                                     name="description"
                                     rows={6}
                                     className="brutal-textarea"
+                                    value={composerState.description}
                                     disabled={pending}
                                     required
                                     onChange={(event) =>
-                                        setPreview((current) => ({ ...current, description: event.target.value }))
+                                        setComposerState((current) => ({ ...current, description: event.target.value }))
                                     }
                                 />
+                                {firstError(state.fieldErrors, "description") && (
+                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                        {firstError(state.fieldErrors, "description")}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -198,79 +449,132 @@ export default function CreateBoardForm() {
                                         className="brutal-input"
                                         disabled={pending}
                                         placeholder="UI/UX, Frontend React, Pitch Deck"
+                                        value={composerState.requiredSkills}
                                         onChange={(event) =>
-                                            setPreview((current) => ({ ...current, requiredSkills: event.target.value }))
+                                            setComposerState((current) => ({ ...current, requiredSkills: event.target.value }))
                                         }
                                     />
+                                    {firstError(state.fieldErrors, "required_skills") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "required_skills")}
+                                        </p>
+                                    )}
+                                    {suggestedSkills.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {suggestedSkills.map((skill) => (
+                                                <button
+                                                    key={skill}
+                                                    type="button"
+                                                    className="brutal-chip bg-white"
+                                                    onClick={() =>
+                                                        setComposerState((current) => ({
+                                                            ...current,
+                                                            requiredSkills: appendSuggestedSkill(current.requiredSkills, skill),
+                                                        }))
+                                                    }
+                                                >
+                                                    + {skill}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="grid gap-6 md:grid-cols-2">
-                                    <div className="grid gap-2">
-                                        <label htmlFor="slot_role_1" className="brutal-label">
-                                            Peran Utama
-                                        </label>
-                                        <select
-                                            id="slot_role_1"
-                                            name="slot_role_1"
-                                            className="brutal-select"
-                                            defaultValue={boardRoleOptions[0]}
-                                            disabled={pending}
-                                            onChange={(event) =>
-                                                setPreview((current) => ({ ...current, roleOne: event.target.value }))
+                                <div className="grid gap-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <label className="brutal-label">Daftar Peran</label>
+                                        <button
+                                            type="button"
+                                            className="brutal-button-secondary"
+                                            onClick={() =>
+                                                setComposerState((current) => ({
+                                                    ...current,
+                                                    slots: [...current.slots, createEmptySlot("")],
+                                                }))
                                             }
                                         >
-                                            {boardRoleOptions.map((role) => (
-                                                <option key={role} value={role}>
-                                                    {role}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            Tambah Peran
+                                        </button>
                                     </div>
-                                    <div className="grid gap-2">
-                                        <label htmlFor="slot_count_1" className="brutal-label">
-                                            Jumlah Slot
-                                        </label>
-                                        <input
-                                            id="slot_count_1"
-                                            name="slot_count_1"
-                                            type="number"
-                                            min={1}
-                                            max={10}
-                                            defaultValue={1}
-                                            className="brutal-input"
-                                            disabled={pending}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <label htmlFor="slot_role_2" className="brutal-label">
-                                            Peran Tambahan
-                                        </label>
-                                        <input
-                                            id="slot_role_2"
-                                            name="slot_role_2"
-                                            className="brutal-input"
-                                            placeholder="Opsional"
-                                            disabled={pending}
-                                            onChange={(event) =>
-                                                setPreview((current) => ({ ...current, roleTwo: event.target.value }))
-                                            }
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <label htmlFor="slot_count_2" className="brutal-label">
-                                            Jumlah Slot Tambahan
-                                        </label>
-                                        <input
-                                            id="slot_count_2"
-                                            name="slot_count_2"
-                                            type="number"
-                                            min={1}
-                                            max={10}
-                                            defaultValue={1}
-                                            className="brutal-input"
-                                            disabled={pending}
-                                        />
-                                    </div>
+
+                                    {composerState.slots.map((slot, index) => (
+                                        <div
+                                            key={slot.id}
+                                            className="brutal-panel-soft grid gap-4 p-4 md:grid-cols-[1fr_180px_auto]"
+                                        >
+                                            <div className="grid gap-2">
+                                                <label htmlFor={`slot-role-${slot.id}`} className="brutal-label">
+                                                    Peran {index + 1}
+                                                </label>
+                                                <input
+                                                    id={`slot-role-${slot.id}`}
+                                                    className="brutal-input"
+                                                    value={slot.roleName}
+                                                    placeholder={boardRoleOptions[index] ?? "Contoh: Research Lead"}
+                                                    disabled={pending}
+                                                    onChange={(event) =>
+                                                        setComposerState((current) => ({
+                                                            ...current,
+                                                            slots: updateSlotValue(
+                                                                current.slots,
+                                                                slot.id,
+                                                                "roleName",
+                                                                event.target.value,
+                                                            ),
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <label htmlFor={`slot-count-${slot.id}`} className="brutal-label">
+                                                    Jumlah Slot
+                                                </label>
+                                                <input
+                                                    id={`slot-count-${slot.id}`}
+                                                    type="number"
+                                                    min={1}
+                                                    max={10}
+                                                    className="brutal-input"
+                                                    value={slot.slotCount}
+                                                    disabled={pending}
+                                                    onChange={(event) =>
+                                                        setComposerState((current) => ({
+                                                            ...current,
+                                                            slots: updateSlotValue(
+                                                                current.slots,
+                                                                slot.id,
+                                                                "slotCount",
+                                                                event.target.value,
+                                                            ),
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div className="flex items-end">
+                                                <button
+                                                    type="button"
+                                                    className="brutal-button-danger w-full"
+                                                    disabled={pending || composerState.slots.length <= 1}
+                                                    onClick={() =>
+                                                        setComposerState((current) => ({
+                                                            ...current,
+                                                            slots: removeSlot(current.slots, slot.id),
+                                                        }))
+                                                    }
+                                                >
+                                                    Hapus
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {firstError(state.fieldErrors, "slots_json") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "slots_json")}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2">
@@ -281,17 +585,17 @@ export default function CreateBoardForm() {
                                         id="visibility"
                                         name="visibility"
                                         className="brutal-select"
-                                        defaultValue="public"
+                                        value={composerState.visibility}
                                         disabled={pending}
                                         onChange={(event) =>
-                                            setPreview((current) => ({ ...current, visibility: event.target.value }))
+                                            setComposerState((current) => ({
+                                                ...current,
+                                                visibility: event.target.value === "private" ? "private" : "public",
+                                            }))
                                         }
                                     >
-                                        {boardVisibilityOptions.map((visibility) => (
-                                            <option key={visibility} value={visibility}>
-                                                {boardVisibilityLabels[visibility]}
-                                            </option>
-                                        ))}
+                                        <option value="public">Publik</option>
+                                        <option value="private">Privat</option>
                                     </select>
                                 </div>
                             </div>
@@ -308,12 +612,14 @@ export default function CreateBoardForm() {
 
                         <aside className="brutal-panel bg-[var(--tm-line)] p-5 text-[var(--tm-paper-strong)]">
                             <p className="display-font text-3xl leading-none">Preview</p>
-                            <h3 className="mt-4 display-font text-4xl leading-[0.92]">{preview.title || "Judul board Anda"}</h3>
+                            <h3 className="mt-4 display-font text-4xl leading-[0.92]">
+                                {composerState.title || "Judul board Anda"}
+                            </h3>
                             <p className="mt-3 text-sm leading-7 text-[#f7eeda]">
-                                {preview.summary || "Ringkasan board akan muncul di sini."}
+                                {composerState.summary || "Ringkasan board akan muncul di sini."}
                             </p>
                             <p className="mt-4 text-sm uppercase tracking-[0.18em] text-[#f7eeda]">
-                                {boardVisibilityLabels[preview.visibility as keyof typeof boardVisibilityLabels]}
+                                {boardVisibilityLabels[composerState.visibility]}
                             </p>
                             <div className="mt-5 flex flex-wrap gap-2">
                                 {previewSkills.length > 0 ? (
@@ -327,14 +633,14 @@ export default function CreateBoardForm() {
                                 )}
                             </div>
                             <div className="mt-5 grid gap-3">
-                                <div className="brutal-panel-soft p-4 text-[var(--tm-line)]">
-                                    <p className="display-font text-xl leading-none">{preview.roleOne}</p>
-                                </div>
-                                {preview.roleTwo.trim().length > 0 && (
-                                    <div className="brutal-panel-soft p-4 text-[var(--tm-line)]">
-                                        <p className="display-font text-xl leading-none">{preview.roleTwo}</p>
+                                {composerState.slots.map((slot) => (
+                                    <div key={slot.id} className="brutal-panel-soft p-4 text-[var(--tm-line)]">
+                                        <p className="display-font text-xl leading-none">{slot.roleName || "Peran baru"}</p>
+                                        <p className="mt-2 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                                            {slot.slotCount || "1"} slot
+                                        </p>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         </aside>
                     </div>

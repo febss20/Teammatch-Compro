@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getNotificationFeed } from "@/lib/notifications/data";
 import type {
+    BoardDraftRecord,
     BoardApplicationRecord,
     BoardSlotRecord,
     CandidateRecord,
@@ -9,11 +11,13 @@ import type {
     CompetitionTypeRecord,
     DashboardMonth,
     JoinRequestRecord,
-    NotificationRecord,
     ProfileRecord,
     SkillOption,
     TeamRecord,
+    TeamListItemRecord,
     TeamMemberRecord,
+    TeamActivityEventRecord,
+    TeamResourceRecord,
     TeamResultRecord,
     TestimonialRecord,
 } from "@/lib/types";
@@ -148,21 +152,23 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         throw new Error(`Gagal memuat availability profil: ${availabilityError.message}`);
     }
 
-    const skillLinkRows = (skillLinks ?? []) as {
+    const skillLinkRows = (skillLinks ?? []) as unknown as {
         skill_taxonomy: { id: string; slug: string; label: string; category: string } | null;
     }[];
-    const competitionLinkRows = (competitionLinks ?? []) as {
+    const competitionLinkRows = (competitionLinks ?? []) as unknown as {
         competition_type_taxonomy: { id: string; slug: string; label: string; recommended_skills: string[] } | null;
     }[];
 
     const skills = skillLinkRows
         .map((item) => item.skill_taxonomy)
         .filter(Boolean)
-        .map((item) => mapSkill(item as { id: string; slug: string; label: string; category: string }));
+        .map((item) => mapSkill(item as unknown as { id: string; slug: string; label: string; category: string }));
     const competitionTypes = competitionLinkRows
         .map((item) => item.competition_type_taxonomy)
         .filter(Boolean)
-        .map((item) => mapCompetitionType(item as { id: string; slug: string; label: string; recommended_skills: string[] }));
+        .map((item) =>
+            mapCompetitionType(item as unknown as { id: string; slug: string; label: string; recommended_skills: string[] }),
+        );
 
     const completionScore = [
         profileRow.full_name,
@@ -191,7 +197,7 @@ export async function getDashboardSnapshot(userId: string) {
         { count: boardsCount, error: boardsError },
         { count: outgoingRequestCount, error: requestsError },
         { count: incomingApplicationCount, error: applicationsError },
-        { data: notifications, error: notificationsError },
+        notificationFeed,
     ] = await Promise.all([
         supabase.from("competition_idea_boards").select("*", { count: "exact", head: true }).eq("user_id", userId),
         supabase.from("join_requests").select("*", { count: "exact", head: true }).eq("requester_id", userId),
@@ -199,12 +205,7 @@ export async function getDashboardSnapshot(userId: string) {
             .from("board_applications")
             .select("id, competition_idea_boards!inner(user_id)", { count: "exact", head: true })
             .eq("competition_idea_boards.user_id", userId),
-        supabase
-            .from("user_notifications")
-            .select("id, category, title, body, link_path, is_read, created_at")
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(5),
+        getNotificationFeed(userId, 5),
     ]);
 
     if (boardsError) {
@@ -216,25 +217,12 @@ export async function getDashboardSnapshot(userId: string) {
     if (applicationsError) {
         throw new Error(`Gagal memuat request masuk: ${applicationsError.message}`);
     }
-    if (notificationsError) {
-        throw new Error(`Gagal memuat notifikasi: ${notificationsError.message}`);
-    }
-
     return {
         boardsCount: boardsCount ?? 0,
         outgoingRequestCount: outgoingRequestCount ?? 0,
         incomingApplicationCount: incomingApplicationCount ?? 0,
-        notifications: (notifications ?? []).map(
-            (item): NotificationRecord => ({
-                id: item.id,
-                category: item.category as NotificationRecord["category"],
-                title: item.title,
-                body: item.body,
-                linkPath: item.link_path,
-                isRead: item.is_read,
-                createdAt: item.created_at,
-            }),
-        ),
+        notifications: notificationFeed.notifications,
+        unreadNotificationsCount: notificationFeed.unreadCount,
     };
 }
 
@@ -302,6 +290,97 @@ export function mapBoardRecord(row: {
     };
 }
 
+type BoardRecordRow = {
+    id: string;
+    user_id: string;
+    title: string;
+    competition_type: string;
+    summary: string | null;
+    description: string;
+    deadline: string;
+    required_skills: string[];
+    status: string;
+    visibility: string;
+    is_draft: boolean;
+    published_at: string | null;
+    closed_at: string | null;
+    last_applicant_at: string | null;
+    created_at: string;
+    updated_at: string;
+    board_slots?: {
+        id: string;
+        board_id: string;
+        role_name: string;
+        slot_count: number;
+        required_skills: string[];
+    }[];
+};
+
+function mapBoardDraftRecord(row: {
+    id: string;
+    user_id: string;
+    title: string | null;
+    summary: string | null;
+    competition_type: string | null;
+    description: string | null;
+    deadline: string | null;
+    required_skills: string[];
+    visibility: string;
+    slots: unknown;
+    updated_at: string;
+}): BoardDraftRecord {
+    const rawSlots = Array.isArray(row.slots) ? row.slots : [];
+    const slots = rawSlots
+        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+        .map((item, index) => ({
+            id: `draft-slot-${index + 1}`,
+            boardId: row.id,
+            roleName: typeof item.roleName === "string" ? item.roleName : "",
+            slotCount: typeof item.slotCount === "number" ? item.slotCount : 1,
+            requiredSkills: Array.isArray(item.requiredSkills)
+                ? item.requiredSkills.filter((skill): skill is string => typeof skill === "string")
+                : [],
+        }))
+        .filter((slot) => slot.roleName.trim().length > 0);
+
+    return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        summary: row.summary,
+        competitionType: row.competition_type,
+        description: row.description,
+        deadline: row.deadline,
+        requiredSkills: row.required_skills,
+        visibility: row.visibility === "private" ? "private" : "public",
+        slots,
+        updatedAt: row.updated_at,
+    };
+}
+
+async function getProfileNameMap(profileIds: string[]) {
+    if (profileIds.length === 0) {
+        return new Map<string, { fullName: string | null; username: string | null }>();
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.from("profiles").select("id, full_name, username").in("id", profileIds);
+
+    if (error) {
+        throw new Error(`Gagal memuat nama profil: ${error.message}`);
+    }
+
+    return new Map(
+        (data ?? []).map((profile) => [
+            profile.id,
+            {
+                fullName: profile.full_name,
+                username: profile.username,
+            },
+        ]),
+    );
+}
+
 export async function getOwnBoards(userId: string) {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
@@ -316,7 +395,8 @@ export async function getOwnBoards(userId: string) {
         throw new Error(`Gagal memuat board milik Anda: ${error.message}`);
     }
 
-    return (data ?? []).map(mapBoardRecord);
+    const rows = (data ?? []) as unknown as BoardRecordRow[];
+    return rows.map(mapBoardRecord);
 }
 
 export async function getPublicBoards(filters: { competitionType?: string | null; viewerId: string }) {
@@ -324,7 +404,7 @@ export async function getPublicBoards(filters: { competitionType?: string | null
     let query = supabase
         .from("competition_idea_boards")
         .select(
-            "id, user_id, title, competition_type, summary, description, deadline, required_skills, status, visibility, is_draft, published_at, closed_at, last_applicant_at, created_at, updated_at, profiles(full_name), board_slots(id, board_id, role_name, slot_count, required_skills)",
+            "id, user_id, title, competition_type, summary, description, deadline, required_skills, status, visibility, is_draft, published_at, closed_at, last_applicant_at, created_at, updated_at, board_slots(id, board_id, role_name, slot_count, required_skills)",
         )
         .eq("visibility", "public")
         .eq("is_draft", false)
@@ -339,7 +419,15 @@ export async function getPublicBoards(filters: { competitionType?: string | null
     if (error) {
         throw new Error(`Gagal memuat board publik: ${error.message}`);
     }
-    return (data ?? []).map(mapBoardRecord);
+
+    const rows = (data ?? []) as unknown as BoardRecordRow[];
+    const boards = rows.map(mapBoardRecord);
+    const creatorMap = await getProfileNameMap([...new Set(boards.map((board) => board.userId))]);
+
+    return boards.map((board) => ({
+        ...board,
+        creatorName: creatorMap.get(board.userId)?.fullName ?? creatorMap.get(board.userId)?.username ?? null,
+    }));
 }
 
 export async function getBoardById(boardId: string) {
@@ -347,7 +435,7 @@ export async function getBoardById(boardId: string) {
     const { data, error } = await supabase
         .from("competition_idea_boards")
         .select(
-            "id, user_id, title, competition_type, summary, description, deadline, required_skills, status, visibility, is_draft, published_at, closed_at, last_applicant_at, created_at, updated_at, profiles(full_name), board_slots(id, board_id, role_name, slot_count, required_skills)",
+            "id, user_id, title, competition_type, summary, description, deadline, required_skills, status, visibility, is_draft, published_at, closed_at, last_applicant_at, created_at, updated_at, board_slots(id, board_id, role_name, slot_count, required_skills)",
         )
         .eq("id", boardId)
         .maybeSingle();
@@ -355,7 +443,16 @@ export async function getBoardById(boardId: string) {
     if (error) {
         throw new Error(`Gagal memuat board: ${error.message}`);
     }
-    return data ? mapBoardRecord(data) : null;
+    if (!data) {
+        return null;
+    }
+
+    const board = mapBoardRecord(data as unknown as BoardRecordRow);
+    const creatorMap = await getProfileNameMap([board.userId]);
+    return {
+        ...board,
+        creatorName: creatorMap.get(board.userId)?.fullName ?? creatorMap.get(board.userId)?.username ?? null,
+    };
 }
 
 export async function getCandidateDiscovery(viewerId: string) {
@@ -394,20 +491,20 @@ export async function getCandidateDiscovery(viewerId: string) {
     const availabilityByProfile = new Map<string, { months: DashboardMonth[]; hours: number }>();
     const summaryByProfile = new Map<string, { avg: number; count: number; bestResult: string | null; competitions: number }>();
 
-    const skillLinkDiscoveryRows = (skillLinksResult.data ?? []) as {
+    const skillLinkDiscoveryRows = (skillLinksResult.data ?? []) as unknown as {
         profile_id: string;
         skill_taxonomy: { id: string; slug: string; label: string; category: string } | null;
     }[];
-    const competitionDiscoveryRows = (preferenceLinksResult.data ?? []) as {
+    const competitionDiscoveryRows = (preferenceLinksResult.data ?? []) as unknown as {
         profile_id: string;
         competition_type_taxonomy: { id: string; slug: string; label: string; recommended_skills: string[] } | null;
     }[];
-    const availabilityRows = (availabilityResult.data ?? []) as {
+    const availabilityRows = (availabilityResult.data ?? []) as unknown as {
         profile_id: string;
         available_months: string[];
         hours_per_week: number;
     }[];
-    const summaryRows = (summaryResult.data ?? []) as {
+    const summaryRows = (summaryResult.data ?? []) as unknown as {
         profile_id: string;
         average_rating: number;
         testimonial_count: number;
@@ -418,7 +515,9 @@ export async function getCandidateDiscovery(viewerId: string) {
     skillLinkDiscoveryRows.forEach((item) => {
         const current = skillsByProfile.get(item.profile_id) ?? [];
         if (item.skill_taxonomy) {
-            current.push(mapSkill(item.skill_taxonomy as { id: string; slug: string; label: string; category: string }));
+            current.push(
+                mapSkill(item.skill_taxonomy as unknown as { id: string; slug: string; label: string; category: string }),
+            );
         }
         skillsByProfile.set(item.profile_id, current);
     });
@@ -428,7 +527,7 @@ export async function getCandidateDiscovery(viewerId: string) {
         if (item.competition_type_taxonomy) {
             current.push(
                 mapCompetitionType(
-                    item.competition_type_taxonomy as {
+                    item.competition_type_taxonomy as unknown as {
                         id: string;
                         slug: string;
                         label: string;
@@ -497,12 +596,17 @@ export async function getCandidateDiscovery(viewerId: string) {
             savedByViewer: savedSet.has(profile.id),
             testimonialAverage: summary?.avg ?? 0,
             testimonialCount: summary?.count ?? 0,
-            competitionsCount: summary?.competitions ?? 0,
-            bestResult: summary?.bestResult ?? null,
+            competitionsCount: profile.showCompetitionHistory ? (summary?.competitions ?? 0) : 0,
+            bestResult: profile.showCompetitionHistory ? (summary?.bestResult ?? null) : null,
         };
     });
 
     return { candidates, viewerProfile };
+}
+
+export async function getCandidateById(viewerId: string, candidateId: string): Promise<CandidateRecord | null> {
+    const candidateData = await getCandidateDiscovery(viewerId);
+    return candidateData.candidates.find((candidate) => candidate.profile.id === candidateId) ?? null;
 }
 
 export async function getJoinRequestsForUser(userId: string) {
@@ -519,11 +623,17 @@ export async function getJoinRequestsForUser(userId: string) {
         throw new Error(`Gagal memuat join requests: ${error.message}`);
     }
 
+    const rows = data ?? [];
+    const profileMap = await getProfileNameMap([...new Set(rows.flatMap((row) => [row.requester_id, row.target_profile_id]))]);
+
     return (data ?? []).map(
         (row): JoinRequestRecord => ({
             id: row.id,
             requesterId: row.requester_id,
             targetProfileId: row.target_profile_id,
+            requesterName: profileMap.get(row.requester_id)?.fullName ?? profileMap.get(row.requester_id)?.username ?? null,
+            targetProfileName:
+                profileMap.get(row.target_profile_id)?.fullName ?? profileMap.get(row.target_profile_id)?.username ?? null,
             boardId: row.board_id,
             selectedRole: row.selected_role,
             message: row.message,
@@ -536,12 +646,29 @@ export async function getJoinRequestsForUser(userId: string) {
     );
 }
 
+export async function getBoardDraft(userId: string): Promise<BoardDraftRecord | null> {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("board_drafts")
+        .select(
+            "id, user_id, title, summary, competition_type, description, deadline, required_skills, visibility, slots, updated_at",
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        throw new Error(`Gagal memuat draft board: ${error.message}`);
+    }
+
+    return data ? mapBoardDraftRecord(data) : null;
+}
+
 export async function getBoardApplicationsForBoard(boardId: string) {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
         .from("board_applications")
         .select(
-            "id, board_id, applicant_id, board_slot_id, selected_role, message, status, skill_match_score, created_at, updated_at, responded_at",
+            "id, board_id, applicant_id, board_slot_id, team_id, selected_role, message, status, skill_match_score, created_at, updated_at, responded_at",
         )
         .eq("board_id", boardId)
         .order("created_at", { ascending: false });
@@ -556,6 +683,7 @@ export async function getBoardApplicationsForBoard(boardId: string) {
             boardId: row.board_id,
             applicantId: row.applicant_id,
             boardSlotId: row.board_slot_id,
+            teamId: row.team_id,
             selectedRole: row.selected_role,
             message: row.message,
             status: row.status as BoardApplicationRecord["status"],
@@ -591,6 +719,79 @@ export async function getTeamById(teamId: string): Promise<TeamRecord | null> {
         : null;
 }
 
+export async function getTeamsForUser(userId: string): Promise<TeamListItemRecord[]> {
+    const supabase = await createServerSupabaseClient();
+    const [{ data: createdTeams, error: createdTeamsError }, { data: memberRows, error: memberRowsError }] = await Promise.all([
+        supabase.from("teams").select("id, board_id, creator_id, name, competition_name, deadline").eq("creator_id", userId),
+        supabase.from("team_members").select("team_id, confirmation_status").eq("profile_id", userId),
+    ]);
+
+    if (createdTeamsError) {
+        throw new Error(`Gagal memuat tim milik creator: ${createdTeamsError.message}`);
+    }
+    if (memberRowsError) {
+        throw new Error(`Gagal memuat keanggotaan tim: ${memberRowsError.message}`);
+    }
+
+    const membershipTeamIds = (memberRows ?? []).map((member) => member.team_id);
+    const createdTeamIds = (createdTeams ?? []).map((team) => team.id);
+    const teamIds = [...new Set([...membershipTeamIds, ...createdTeamIds])];
+
+    if (teamIds.length === 0) {
+        return [];
+    }
+
+    const [{ data: teams, error: teamsError }, { data: allMembers, error: allMembersError }] = await Promise.all([
+        supabase
+            .from("teams")
+            .select("id, board_id, creator_id, name, competition_name, deadline")
+            .in("id", teamIds)
+            .order("created_at", { ascending: false }),
+        supabase.from("team_members").select("team_id, profile_id, confirmation_status").in("team_id", teamIds),
+    ]);
+
+    if (teamsError) {
+        throw new Error(`Gagal memuat daftar tim: ${teamsError.message}`);
+    }
+    if (allMembersError) {
+        throw new Error(`Gagal memuat anggota untuk daftar tim: ${allMembersError.message}`);
+    }
+
+    const membersByTeamId = new Map<string, { confirmation_status: string; profile_id: string }[]>();
+    (allMembers ?? []).forEach((member) => {
+        const current = membersByTeamId.get(member.team_id) ?? [];
+        current.push({
+            confirmation_status: member.confirmation_status,
+            profile_id: member.profile_id,
+        });
+        membersByTeamId.set(member.team_id, current);
+    });
+
+    return (teams ?? []).map((team) => {
+        const members = membersByTeamId.get(team.id) ?? [];
+        const selfMember = members.find((member) => member.profile_id === userId) ?? null;
+        const confirmedMembersCount = members.filter((member) => member.confirmation_status === "confirmed").length;
+
+        return {
+            id: team.id,
+            boardId: team.board_id,
+            creatorId: team.creator_id,
+            name: team.name,
+            competitionName: team.competition_name,
+            deadline: team.deadline,
+            membersCount: members.length,
+            confirmedMembersCount,
+            selfCommitmentStatus: selfMember
+                ? selfMember.confirmation_status === "confirmed"
+                    ? "confirmed"
+                    : selfMember.confirmation_status === "expired"
+                      ? "expired"
+                      : "pending"
+                : null,
+        };
+    });
+}
+
 export async function getTeamMembers(teamId: string): Promise<TeamMemberRecord[]> {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
@@ -604,25 +805,34 @@ export async function getTeamMembers(teamId: string): Promise<TeamMemberRecord[]
         throw new Error(`Gagal memuat anggota tim: ${error.message}`);
     }
 
-    const rows = (data ?? []) as {
+    const rows = (data ?? []) as unknown as {
         id: string;
         profile_id: string;
         role_name: string;
         confirmation_status: string;
         profiles: { full_name: string | null } | null;
-        team_commitments:
-            | { id: string; deadline_at: string; confirmed_at: string | null; last_reminded_at: string | null; hours_per_week: number }[]
-            | null;
+        team_commitments: {
+            id: string;
+            deadline_at: string;
+            confirmed_at: string | null;
+            last_reminded_at: string | null;
+            hours_per_week: number;
+        } | null;
     }[];
 
     return rows.map((row) => {
-        const commitment = row.team_commitments?.[0] ?? null;
+        const commitment = row.team_commitments ?? null;
         return {
             id: row.id,
             profileId: row.profile_id,
             fullName: row.profiles?.full_name ?? null,
             roleName: row.role_name,
-            confirmationStatus: row.confirmation_status === "confirmed" ? "confirmed" : row.confirmation_status === "expired" ? "expired" : "pending",
+            confirmationStatus:
+                row.confirmation_status === "confirmed"
+                    ? "confirmed"
+                    : row.confirmation_status === "expired"
+                      ? "expired"
+                      : "pending",
             commitmentId: commitment?.id ?? null,
             commitmentDeadlineAt: commitment?.deadline_at ?? null,
             commitmentConfirmedAt: commitment?.confirmed_at ?? null,
@@ -657,6 +867,59 @@ export async function getTeamResult(teamId: string): Promise<TeamResultRecord | 
         : null;
 }
 
+export async function getTeamResources(teamId: string): Promise<TeamResourceRecord[]> {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("team_resources")
+        .select("id, team_id, resource_type, label, url, created_at")
+        .eq("team_id", teamId)
+        .order("created_at", { ascending: true });
+
+    if (error) {
+        throw new Error(`Gagal memuat resource tim: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => ({
+        id: row.id,
+        teamId: row.team_id,
+        resourceType: row.resource_type,
+        label: row.label,
+        url: row.url,
+        createdAt: row.created_at,
+    }));
+}
+
+export async function getTeamActivityEvents(teamId: string): Promise<TeamActivityEventRecord[]> {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("team_activity_events")
+        .select("id, team_id, actor_id, event_type, payload, created_at")
+        .eq("team_id", teamId)
+        .order("created_at", { ascending: false })
+        .limit(12);
+
+    if (error) {
+        throw new Error(`Gagal memuat aktivitas tim: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    const actorMap = await getProfileNameMap(
+        rows
+            .map((row) => row.actor_id)
+            .filter((actorId): actorId is string => typeof actorId === "string" && actorId.length > 0),
+    );
+
+    return rows.map((row) => ({
+        id: row.id,
+        teamId: row.team_id,
+        actorId: row.actor_id,
+        actorName: row.actor_id ? (actorMap.get(row.actor_id)?.fullName ?? actorMap.get(row.actor_id)?.username ?? null) : null,
+        eventType: row.event_type,
+        payload: typeof row.payload === "object" && row.payload !== null ? (row.payload as Record<string, unknown>) : {},
+        createdAt: row.created_at,
+    }));
+}
+
 export async function getTeamTestimonials(teamId: string): Promise<TestimonialRecord[]> {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
@@ -679,29 +942,5 @@ export async function getTeamTestimonials(teamId: string): Promise<TestimonialRe
         lockedAt: row.locked_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-    }));
-}
-
-export async function getNotificationCenter(userId: string): Promise<NotificationRecord[]> {
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-        .from("user_notifications")
-        .select("id, category, title, body, link_path, is_read, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-    if (error) {
-        throw new Error(`Gagal memuat pusat notifikasi: ${error.message}`);
-    }
-
-    return (data ?? []).map((item) => ({
-        id: item.id,
-        category: item.category as NotificationRecord["category"],
-        title: item.title,
-        body: item.body,
-        linkPath: item.link_path,
-        isRead: item.is_read,
-        createdAt: item.created_at,
     }));
 }

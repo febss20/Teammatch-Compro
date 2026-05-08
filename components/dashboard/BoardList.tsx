@@ -93,7 +93,9 @@ export default function BoardList({ boards }: BoardListProps) {
 
                             <div>
                                 <h3 className="display-font text-5xl leading-[0.92] text-[var(--tm-line)]">{board.title}</h3>
-                                <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--tm-muted)] break-words">{board.description}</p>
+                                <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--tm-muted)] break-words">
+                                    {board.description}
+                                </p>
                             </div>
 
                             <div className="flex flex-wrap gap-2">

@@ -4,13 +4,7 @@ import { useActionState } from "react";
 import { confirmTeamCommitment } from "@/app/(dashboard)/dashboard/actions";
 import { commitmentInitialState } from "@/lib/forms";
 
-export default function CommitmentForm({
-    defaultHours,
-    teamMemberId,
-}: {
-    defaultHours: number;
-    teamMemberId: string;
-}) {
+export default function CommitmentForm({ defaultHours, teamMemberId }: { defaultHours: number; teamMemberId: string }) {
     const [state, formAction, pending] = useActionState(confirmTeamCommitment, commitmentInitialState);
 
     return (

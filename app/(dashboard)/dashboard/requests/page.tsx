@@ -1,4 +1,7 @@
 import JoinRequestComposer from "@/components/dashboard/JoinRequestComposer";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import DashboardRealtimeRefresh from "@/components/dashboard/DashboardRealtimeRefresh";
+import { acceptJoinRequest, rejectJoinRequest } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getCandidateDiscovery, getJoinRequestsForUser } from "@/lib/dashboard/data";
 import { withdrawJoinRequest } from "@/app/(dashboard)/dashboard/actions";
@@ -26,6 +29,21 @@ export default async function RequestsPage({
 
     return (
         <div className="space-y-6">
+            <DashboardRealtimeRefresh
+                scopeKey={`requests-${user.id}`}
+                subscriptions={[
+                    {
+                        event: "*",
+                        filter: `requester_id=eq.${user.id}`,
+                        table: "join_requests",
+                    },
+                    {
+                        event: "*",
+                        filter: `target_profile_id=eq.${user.id}`,
+                        table: "join_requests",
+                    },
+                ]}
+            />
             <div className="space-y-4">
                 <div className="section-kicker">Requests</div>
                 <h1 className="display-font text-6xl leading-[0.9] md:text-7xl">KELOLA REQUEST MASUK DAN KELUAR</h1>
@@ -47,6 +65,9 @@ export default async function RequestsPage({
                                 <span className="brutal-chip bg-[var(--tm-accent-2)]">{request.status}</span>
                                 <span className="brutal-chip bg-white">{request.selectedRole}</span>
                             </div>
+                            <p className="display-font text-2xl leading-none">
+                                Ke {request.targetProfileName ?? "Kandidat TeamMatch"}
+                            </p>
                             <p className="text-base leading-8 text-[var(--tm-muted)]">{request.message}</p>
                             {request.status === "pending" && (
                                 <form action={withdrawJoinRequest}>
@@ -59,9 +80,12 @@ export default async function RequestsPage({
                         </article>
                     ))}
                     {outgoingRequests.length === 0 && (
-                        <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
-                            <p className="text-base leading-8 text-[var(--tm-muted)]">Belum ada request keluar.</p>
-                        </div>
+                        <DashboardEmptyState
+                            actionHref="/dashboard/find-team"
+                            actionLabel="Cari kandidat"
+                            title="Belum ada request keluar"
+                            body="Mulai kirim request ke kandidat yang paling cocok dari halaman discovery."
+                        />
                     )}
                 </div>
 
@@ -73,13 +97,35 @@ export default async function RequestsPage({
                                 <span className="brutal-chip bg-[#d6e4ff]">{request.status}</span>
                                 <span className="brutal-chip bg-white">{request.selectedRole}</span>
                             </div>
+                            <p className="display-font text-2xl leading-none">
+                                Dari {request.requesterName ?? "Kandidat TeamMatch"}
+                            </p>
                             <p className="text-base leading-8 text-[var(--tm-muted)]">{request.message}</p>
+                            {request.status === "pending" && (
+                                <div className="flex flex-wrap gap-3">
+                                    <form action={acceptJoinRequest}>
+                                        <input type="hidden" name="request_id" value={request.id} />
+                                        <button type="submit" className="brutal-button">
+                                            Terima
+                                        </button>
+                                    </form>
+                                    <form action={rejectJoinRequest}>
+                                        <input type="hidden" name="request_id" value={request.id} />
+                                        <button type="submit" className="brutal-button-danger">
+                                            Tolak
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
                         </article>
                     ))}
                     {incomingRequests.length === 0 && (
-                        <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
-                            <p className="text-base leading-8 text-[var(--tm-muted)]">Belum ada request masuk.</p>
-                        </div>
+                        <DashboardEmptyState
+                            actionHref="/dashboard/find-team"
+                            actionLabel="Buka discovery"
+                            title="Belum ada request masuk"
+                            body="Request kolaborasi dari kandidat lain akan muncul di sisi ini secara otomatis."
+                        />
                     )}
                 </div>
             </section>

@@ -28,7 +28,13 @@ export default function TeamResultForm({ teamId }: { teamId: string }) {
                 <label htmlFor="competition_ended_at" className="brutal-label">
                     Tanggal Lomba Selesai
                 </label>
-                <input id="competition_ended_at" name="competition_ended_at" type="date" className="brutal-input" disabled={pending} />
+                <input
+                    id="competition_ended_at"
+                    name="competition_ended_at"
+                    type="date"
+                    className="brutal-input"
+                    disabled={pending}
+                />
             </div>
             <button type="submit" disabled={pending} className="brutal-button-secondary">
                 {pending ? "Mencatat..." : "Catat Hasil Lomba"}

@@ -7,6 +7,8 @@ import { requireCompletedProfile, requireUser } from "@/lib/auth";
 import { safeParsePasswordChange } from "@/lib/auth/validation";
 import {
     createCompetitionIdeaBoardPayload,
+    normalizeRequiredSkills,
+    parseBoardSlotsJsonValue,
     safeParseCreateCompetitionIdeaBoard,
     safeParseDeleteCompetitionIdeaBoard,
     safeParseUpdateCompetitionIdeaBoard,
@@ -23,11 +25,18 @@ import {
     profileStepThreeInitialState,
     profileStepTwoInitialState,
     settingsInitialState,
+    teamResourceInitialState,
     teamRenameInitialState,
     teamResultInitialState,
     testimonialInitialState,
 } from "@/lib/forms";
 import { safeParseBoardApplication, safeParseJoinRequest } from "@/lib/matching/validation";
+import {
+    ensureNotificationPreferences,
+    markNotificationReadForUser,
+    sendServerNotification,
+    updateNotificationPreferences,
+} from "@/lib/notifications/service";
 import {
     safeParseProfileStepOne,
     safeParseProfileStepThree,
@@ -37,7 +46,16 @@ import {
 import { safeParseSettings } from "@/lib/settings/validation";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { safeParseCommitment, safeParseTeamRename, safeParseTeamResult, safeParseTestimonial } from "@/lib/team/validation";
+import {
+    safeParseCommitment,
+    safeParseTeamRename,
+    safeParseTeamResource,
+    safeParseTeamResult,
+    safeParseTestimonial,
+} from "@/lib/team/validation";
+import { getCandidateDiscovery } from "@/lib/dashboard/data";
+import { runDashboardMaintenance } from "@/lib/dashboard/runtime";
+import type { Json } from "@/lib/supabase/database.types";
 import type {
     BoardApplicationFieldName,
     CommitmentFieldName,
@@ -50,6 +68,7 @@ import type {
     ProfileStepThreeFieldName,
     ProfileStepTwoFieldName,
     SettingsFieldName,
+    TeamResourceFieldName,
     TeamRenameFieldName,
     TeamResultFieldName,
     TestimonialFieldName,
@@ -60,47 +79,45 @@ interface DeleteCompetitionIdeaBoardResult {
     success: boolean;
 }
 
-async function upsertNotificationPreference(userId: string) {
+async function insertPrivacyAuditEvent(userId: string, eventType: string, payload: Record<string, unknown>) {
     const supabase = await createServerSupabaseClient();
-    await supabase.from("notification_preferences").upsert({
+    const { error } = await supabase.from("privacy_audit_events").insert({
         user_id: userId,
-        updated_at: new Date().toISOString(),
+        event_type: eventType,
+        payload: payload as Json,
     });
-}
 
-async function insertNotification(userId: string, category: string, title: string, body: string, linkPath?: string) {
-    const supabase = await createServerSupabaseClient();
-    await supabase.from("user_notifications").insert({
-        user_id: userId,
-        category,
-        title,
-        body,
-        link_path: linkPath ?? null,
-    });
+    if (error) {
+        throw new Error(`Gagal menyimpan audit privasi: ${error.message}`);
+    }
 }
 
 async function refreshProfileSummary(profileId: string) {
     const supabase = await createServerSupabaseClient();
-    const [{ count: historyCount, error: historyError }, { data: bestResultRow, error: historyBestError }, { data: testimonialRows, error: testimonialError }] =
-        await Promise.all([
-            supabase.from("competition_history").select("*", { count: "exact", head: true }).eq("profile_id", profileId),
-            supabase
-                .from("competition_history")
-                .select("best_result")
-                .eq("profile_id", profileId)
-                .not("best_result", "is", null)
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-            supabase.from("testimonials").select("rating").eq("target_profile_id", profileId),
-        ]);
+    const [
+        { count: historyCount, error: historyError },
+        { data: bestResultRow, error: historyBestError },
+        { data: testimonialRows, error: testimonialError },
+    ] = await Promise.all([
+        supabase.from("competition_history").select("*", { count: "exact", head: true }).eq("profile_id", profileId),
+        supabase
+            .from("competition_history")
+            .select("best_result")
+            .eq("profile_id", profileId)
+            .not("best_result", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        supabase.from("testimonials").select("rating").eq("target_profile_id", profileId),
+    ]);
 
     if (historyError || historyBestError || testimonialError) {
         return;
     }
 
     const ratings = (testimonialRows ?? []).map((row) => row.rating);
-    const averageRating = ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(2)) : 0;
+    const averageRating =
+        ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(2)) : 0;
 
     await supabase.from("profile_testimonial_summaries").upsert({
         profile_id: profileId,
@@ -110,6 +127,98 @@ async function refreshProfileSummary(profileId: string) {
         competitions_count: historyCount ?? 0,
         updated_at: new Date().toISOString(),
     });
+}
+
+async function insertTeamActivityEvent(
+    teamId: string,
+    actorId: string | null,
+    eventType: string,
+    payload: Record<string, unknown>,
+) {
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.from("team_activity_events").insert({
+        team_id: teamId,
+        actor_id: actorId,
+        event_type: eventType,
+        payload: payload as Json,
+    });
+
+    if (error) {
+        throw new Error(`Gagal mencatat aktivitas tim: ${error.message}`);
+    }
+}
+
+async function persistBoardWithSlots(input: {
+    userId: string;
+    title: string;
+    summary: string;
+    competitionType: string;
+    description: string;
+    deadline: string;
+    requiredSkills: string[];
+    visibility: "public" | "private";
+    slots: { roleName: string; slotCount: number; requiredSkills: string[] }[];
+}) {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("competition_idea_boards")
+        .insert({
+            user_id: input.userId,
+            title: input.title,
+            summary: input.summary,
+            competition_type: input.competitionType,
+            description: input.description,
+            deadline: input.deadline,
+            required_skills: input.requiredSkills,
+            status: "open",
+            visibility: input.visibility,
+            is_draft: false,
+            published_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+    if (error) {
+        throw new Error(`Gagal menyimpan board ide lomba: ${error.message}`);
+    }
+
+    const slotsResult = await supabase.from("board_slots").insert(
+        input.slots.map((slot) => ({
+            board_id: data.id,
+            role_name: slot.roleName,
+            slot_count: slot.slotCount,
+            required_skills: slot.requiredSkills,
+        })),
+    );
+
+    if (slotsResult.error) {
+        throw new Error(`Board tersimpan tetapi slot tim gagal dibuat: ${slotsResult.error.message}`);
+    }
+
+    return data.id;
+}
+
+async function notifyMatchingCandidates(input: { boardId: string; competitionType: string; creatorId: string; title: string }) {
+    const candidateData = await getCandidateDiscovery(input.creatorId);
+    const matchingCandidates = candidateData.candidates
+        .filter(
+            (candidate) =>
+                candidate.compatibilityScore >= 60 &&
+                candidate.profile.competitionTypes.some((type) => type.slug === input.competitionType),
+        )
+        .slice(0, 12);
+
+    await Promise.all(
+        matchingCandidates.map((candidate) =>
+            sendServerNotification({
+                type: "board_match_found",
+                boardId: input.boardId,
+                boardTitle: input.title,
+                candidateUserId: candidate.profile.id,
+            }),
+        ),
+    );
 }
 
 async function persistProfileStepOne(
@@ -185,6 +294,15 @@ async function persistProfileStepThree(
     completeProfile: boolean,
 ) {
     const supabase = await createServerSupabaseClient();
+    const { data: currentProfile, error: currentProfileError } = await supabase
+        .from("profiles")
+        .select("public_visibility, show_competition_history")
+        .eq("id", userId)
+        .single();
+
+    if (currentProfileError) {
+        throw new Error(`Gagal memuat pengaturan privasi saat ini: ${currentProfileError.message}`);
+    }
 
     const [availabilityResult, profileResult] = await Promise.all([
         supabase.from("profile_availability").upsert({
@@ -210,12 +328,29 @@ async function persistProfileStepThree(
     if (profileResult.error) {
         throw new Error(`Gagal menyimpan pengaturan profil: ${profileResult.error.message}`);
     }
+
+    if (
+        currentProfile.public_visibility !== (payload.public_visibility === "public") ||
+        currentProfile.show_competition_history !== payload.show_competition_history
+    ) {
+        await insertPrivacyAuditEvent(userId, "profile_privacy_updated", {
+            public_visibility: payload.public_visibility,
+            show_competition_history: payload.show_competition_history,
+            completed_profile: completeProfile,
+        });
+    }
 }
 
 export async function logoutAction(): Promise<void> {
     const supabase = await createServerSupabaseClient();
     await supabase.auth.signOut();
     redirect("/login");
+}
+
+export async function triggerDashboardMaintenance(): Promise<{ updated: boolean }> {
+    await requireUser();
+    const updated = await runDashboardMaintenance();
+    return { updated };
 }
 
 export async function completeProfileStepOne(
@@ -301,7 +436,7 @@ export async function completeProfileStepThree(
         }
 
         await persistProfileStepThree(user.id, validationResult.data, true);
-        await upsertNotificationPreference(user.id);
+        await ensureNotificationPreferences(user.id);
         revalidatePath("/dashboard");
         revalidatePath("/dashboard/profile/setup");
         revalidatePath("/dashboard/profile");
@@ -353,6 +488,84 @@ export async function updateProfile(
     }
 }
 
+export async function saveBoardDraft(formData: FormData) {
+    const { user } = await requireCompletedProfile();
+    const title = typeof formData.get("title") === "string" ? String(formData.get("title")).trim() : "";
+    const summary = typeof formData.get("summary") === "string" ? String(formData.get("summary")).trim() : "";
+    const competitionTypeSelect =
+        typeof formData.get("competition_type_select") === "string"
+            ? String(formData.get("competition_type_select")).trim()
+            : "";
+    const competitionTypeOther =
+        typeof formData.get("competition_type_other") === "string" ? String(formData.get("competition_type_other")).trim() : "";
+    const description = typeof formData.get("description") === "string" ? String(formData.get("description")).trim() : "";
+    const deadline = typeof formData.get("deadline") === "string" ? String(formData.get("deadline")).trim() : "";
+    const requiredSkillsValue =
+        typeof formData.get("required_skills") === "string" ? String(formData.get("required_skills")).trim() : "";
+    const visibility = formData.get("visibility") === "private" ? "private" : "public";
+    const slotsJson = typeof formData.get("slots_json") === "string" ? String(formData.get("slots_json")).trim() : "[]";
+    const requiredSkills = normalizeRequiredSkills(requiredSkillsValue);
+    const parsedSlots = (() => {
+        try {
+            return parseBoardSlotsJsonValue(slotsJson);
+        } catch {
+            return [];
+        }
+    })();
+    const slots = parsedSlots.map((slot) => ({
+        roleName: slot.roleName,
+        slotCount: slot.slotCount,
+        requiredSkills,
+    }));
+
+    const competitionType =
+        competitionTypeSelect === "others" && competitionTypeOther.length > 0
+            ? competitionTypeOther
+            : competitionTypeSelect || null;
+
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.from("board_drafts").upsert(
+        {
+            user_id: user.id,
+            title: title.length > 0 ? title : null,
+            summary: summary.length > 0 ? summary : null,
+            competition_type: competitionType,
+            description: description.length > 0 ? description : null,
+            deadline: deadline.length > 0 ? deadline : null,
+            required_skills: requiredSkills,
+            visibility,
+            slots,
+            updated_at: new Date().toISOString(),
+        },
+        {
+            onConflict: "user_id",
+        },
+    );
+
+    if (error) {
+        throw new Error(`Gagal menyimpan draft board: ${error.message}`);
+    }
+}
+
+export async function discardBoardDraft() {
+    const { user } = await requireCompletedProfile();
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.from("board_drafts").delete().eq("user_id", user.id);
+
+    if (error) {
+        throw new Error(`Gagal menghapus draft board: ${error.message}`);
+    }
+
+    revalidatePath("/dashboard/boards/new");
+}
+
+export async function publishBoardFromDraft(
+    previousState: FormActionState<CompetitionIdeaBoardFieldName>,
+    formData: FormData,
+): Promise<FormActionState<CompetitionIdeaBoardFieldName>> {
+    return createCompetitionIdeaBoard(previousState, formData);
+}
+
 export async function createCompetitionIdeaBoard(
     _previousState: FormActionState<CompetitionIdeaBoardFieldName>,
     formData: FormData,
@@ -370,43 +583,30 @@ export async function createCompetitionIdeaBoard(
         }
 
         const payload = createCompetitionIdeaBoardPayload(validationResult.data);
+        const boardId = await persistBoardWithSlots({
+            userId: user.id,
+            title: payload.title,
+            summary: payload.summary,
+            competitionType: payload.competitionType,
+            description: payload.description,
+            deadline: payload.deadline,
+            requiredSkills: payload.requiredSkills,
+            visibility: payload.visibility,
+            slots: payload.slots,
+        });
         const supabase = await createServerSupabaseClient();
-        const { data, error } = await supabase
-            .from("competition_idea_boards")
-            .insert({
-                user_id: user.id,
-                title: payload.title,
-                summary: payload.summary,
-                competition_type: payload.competitionType,
-                description: payload.description,
-                deadline: payload.deadline,
-                required_skills: payload.requiredSkills,
-                status: "open",
-                visibility: payload.visibility,
-                is_draft: false,
-                published_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            })
-            .select("id")
-            .single();
+        const draftDeleteResult = await supabase.from("board_drafts").delete().eq("user_id", user.id);
 
-        if (error) {
-            throw new Error(`Gagal menyimpan board ide lomba: ${error.message}`);
+        if (draftDeleteResult.error) {
+            throw new Error(`Board terpublikasi tetapi draft gagal dibersihkan: ${draftDeleteResult.error.message}`);
         }
 
-        const boardId = data.id;
-        const slotsResult = await supabase.from("board_slots").insert(
-            payload.slots.map((slot) => ({
-                board_id: boardId,
-                role_name: slot.roleName,
-                slot_count: slot.slotCount,
-                required_skills: slot.requiredSkills,
-            })),
-        );
-
-        if (slotsResult.error) {
-            throw new Error(`Board tersimpan tetapi slot tim gagal dibuat: ${slotsResult.error.message}`);
-        }
+        await notifyMatchingCandidates({
+            boardId,
+            competitionType: payload.competitionType,
+            creatorId: user.id,
+            title: payload.title,
+        });
 
         revalidatePath("/dashboard");
         revalidatePath("/dashboard/boards");
@@ -546,6 +746,39 @@ export async function deleteCompetitionIdeaBoard(formData: FormData): Promise<De
     }
 }
 
+export async function closeBoardRecruitment(formData: FormData) {
+    const { user } = await requireCompletedProfile();
+    const validationResult = safeParseDeleteCompetitionIdeaBoard(formData);
+
+    if (!validationResult.success) {
+        throw new Error(validationResult.error.issues[0]?.message ?? "ID board ide tidak valid.");
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("competition_idea_boards")
+        .update({
+            status: "closed",
+            closed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", validationResult.data.id)
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle();
+
+    if (error) {
+        throw new Error(`Gagal menutup rekrutmen board: ${error.message}`);
+    }
+    if (!data) {
+        throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/boards");
+    revalidatePath(`/dashboard/boards/${validationResult.data.id}`);
+}
+
 export async function saveCandidate(formData: FormData) {
     const { user } = await requireCompletedProfile();
     const targetProfileId = formData.get("target_profile_id");
@@ -643,13 +876,11 @@ export async function sendJoinRequest(
             note: profile.fullName ?? user.email ?? "Pengguna TeamMatch",
         });
 
-        await insertNotification(
-            validationResult.data.target_profile_id,
-            "request",
-            "Request tim baru",
-            `${profile.fullName ?? "Seseorang"} mengirim request untuk berkolaborasi.`,
-            "/dashboard/requests",
-        );
+        await sendServerNotification({
+            type: "join_request_received",
+            actorName: profile.fullName ?? user.email ?? "Pengguna TeamMatch",
+            targetUserId: validationResult.data.target_profile_id,
+        });
 
         revalidatePath("/dashboard/find-team");
         revalidatePath("/dashboard/requests");
@@ -691,6 +922,121 @@ export async function withdrawJoinRequest(formData: FormData) {
     revalidatePath("/dashboard/requests");
 }
 
+export async function acceptJoinRequest(formData: FormData) {
+    const { user } = await requireCompletedProfile();
+    const requestId = formData.get("request_id");
+    if (typeof requestId !== "string" || requestId.length === 0) {
+        throw new Error("Request tidak valid.");
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const { data: requestRow, error: requestError } = await supabase
+        .from("join_requests")
+        .select("id, requester_id, target_profile_id, status")
+        .eq("id", requestId)
+        .eq("target_profile_id", user.id)
+        .maybeSingle();
+
+    if (requestError) {
+        throw new Error(`Gagal memuat request masuk: ${requestError.message}`);
+    }
+    if (!requestRow) {
+        throw new Error("Request tidak ditemukan atau Anda tidak memiliki akses.");
+    }
+    if (requestRow.status !== "pending") {
+        throw new Error("Hanya request dengan status pending yang dapat diterima.");
+    }
+
+    const now = new Date().toISOString();
+    const [updateResult, eventResult] = await Promise.all([
+        supabase
+            .from("join_requests")
+            .update({
+                status: "accepted",
+                updated_at: now,
+                responded_at: now,
+            })
+            .eq("id", requestId),
+        supabase.from("join_request_events").insert({
+            join_request_id: requestId,
+            actor_id: user.id,
+            event_type: "accepted",
+        }),
+    ]);
+
+    if (updateResult.error) {
+        throw new Error(`Gagal menerima request: ${updateResult.error.message}`);
+    }
+    if (eventResult.error) {
+        throw new Error(`Request diterima tetapi event tidak tercatat: ${eventResult.error.message}`);
+    }
+
+    await sendServerNotification({
+        type: "join_request_accepted",
+        requesterUserId: requestRow.requester_id,
+    });
+
+    revalidatePath("/dashboard/requests");
+}
+
+export async function rejectJoinRequest(formData: FormData) {
+    const { user } = await requireCompletedProfile();
+    const requestId = formData.get("request_id");
+    if (typeof requestId !== "string" || requestId.length === 0) {
+        throw new Error("Request tidak valid.");
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const { data: requestRow, error: requestError } = await supabase
+        .from("join_requests")
+        .select("id, requester_id, target_profile_id, status")
+        .eq("id", requestId)
+        .eq("target_profile_id", user.id)
+        .maybeSingle();
+
+    if (requestError) {
+        throw new Error(`Gagal memuat request masuk: ${requestError.message}`);
+    }
+    if (!requestRow) {
+        throw new Error("Request tidak ditemukan atau Anda tidak memiliki akses.");
+    }
+    if (requestRow.status !== "pending") {
+        throw new Error("Hanya request dengan status pending yang dapat ditolak.");
+    }
+
+    const now = new Date().toISOString();
+    const [updateResult, eventResult] = await Promise.all([
+        supabase
+            .from("join_requests")
+            .update({
+                status: "rejected",
+                rejection_locked: true,
+                updated_at: now,
+                responded_at: now,
+            })
+            .eq("id", requestId),
+        supabase.from("join_request_events").insert({
+            join_request_id: requestId,
+            actor_id: user.id,
+            event_type: "rejected",
+        }),
+    ]);
+
+    if (updateResult.error) {
+        throw new Error(`Gagal menolak request: ${updateResult.error.message}`);
+    }
+    if (eventResult.error) {
+        throw new Error(`Request ditolak tetapi event tidak tercatat: ${eventResult.error.message}`);
+    }
+
+    await sendServerNotification({
+        type: "join_request_rejected",
+        requesterUserId: requestRow.requester_id,
+    });
+
+    revalidatePath("/dashboard/requests");
+}
+
 export async function applyToBoard(
     _previousState: FormActionState<BoardApplicationFieldName>,
     formData: FormData,
@@ -724,18 +1070,32 @@ export async function applyToBoard(
             throw new Error("Anda tidak bisa melamar ke board milik sendiri.");
         }
 
-        const { data: applicantSkills } = await supabase
+        const { data: applicantSkillLinks, error: applicantSkillLinksError } = await supabase
             .from("profile_skills")
-            .select("skill_taxonomy(label)")
+            .select("skill_id")
             .eq("profile_id", user.id);
 
-        const applicantSkillRows = (applicantSkills ?? []) as { skill_taxonomy: { label: string } | null }[];
-        const applicantSkillLabels = new Set(
-            applicantSkillRows
-                .map((item) => item.skill_taxonomy)
-                .filter(Boolean)
-                .map((item) => (item as { label: string }).label.toLowerCase()),
-        );
+        if (applicantSkillLinksError) {
+            throw new Error(`Gagal memuat skill pelamar: ${applicantSkillLinksError.message}`);
+        }
+
+        const applicantSkillIds = (applicantSkillLinks ?? []).map((item) => item.skill_id);
+        const applicantSkillLabels =
+            applicantSkillIds.length > 0
+                ? await (async () => {
+                      const { data: skillRows, error: skillRowsError } = await supabase
+                          .from("skill_taxonomy")
+                          .select("label")
+                          .in("id", applicantSkillIds);
+
+                      if (skillRowsError) {
+                          throw new Error(`Gagal memuat label skill pelamar: ${skillRowsError.message}`);
+                      }
+
+                      return new Set((skillRows ?? []).map((item) => item.label.toLowerCase()));
+                  })()
+                : new Set<string>();
+
         const skillMatchCount = boardData.required_skills.filter((skill) =>
             applicantSkillLabels.has(skill.toLowerCase()),
         ).length;
@@ -776,13 +1136,12 @@ export async function applyToBoard(
             })
             .eq("id", validationResult.data.board_id);
 
-        await insertNotification(
-            boardData.user_id,
-            "application",
-            "Pelamar baru masuk",
-            `${profile.fullName ?? "Seseorang"} melamar ke board Anda.`,
-            `/dashboard/boards/${validationResult.data.board_id}/review`,
-        );
+        await sendServerNotification({
+            type: "board_application_received",
+            actorName: profile.fullName ?? user.email ?? "Pengguna TeamMatch",
+            boardId: validationResult.data.board_id,
+            ownerUserId: boardData.user_id,
+        });
 
         revalidatePath("/dashboard/boards");
         revalidatePath(`/dashboard/boards/${validationResult.data.board_id}`);
@@ -830,75 +1189,6 @@ export async function saveBoardApplication(formData: FormData) {
     revalidatePath("/dashboard/boards");
 }
 
-async function createTeamFromApplication(boardId: string, creatorId: string, applicantId: string, roleName: string) {
-    const supabase = await createServerSupabaseClient();
-    const { data: board, error: boardError } = await supabase
-        .from("competition_idea_boards")
-        .select("title, deadline")
-        .eq("id", boardId)
-        .single();
-
-    if (boardError) {
-        throw new Error(`Gagal menyiapkan tim: ${boardError.message}`);
-    }
-
-    const { data: team, error: teamError } = await supabase
-        .from("teams")
-        .insert({
-            board_id: boardId,
-            creator_id: creatorId,
-            name: board.title,
-            competition_name: board.title,
-            deadline: board.deadline,
-        })
-        .select("id")
-        .single();
-
-    if (teamError) {
-        throw new Error(`Gagal membuat tim: ${teamError.message}`);
-    }
-
-    const { data: creatorMember, error: creatorMemberError } = await supabase
-        .from("team_members")
-        .insert([
-            {
-                team_id: team.id,
-                profile_id: creatorId,
-                role_name: "Creator",
-                confirmation_status: "confirmed",
-            },
-            {
-                team_id: team.id,
-                profile_id: applicantId,
-                role_name: roleName,
-                confirmation_status: "pending",
-            },
-        ])
-        .select("id, profile_id");
-
-    if (creatorMemberError || !creatorMember) {
-        throw new Error(`Gagal membuat anggota tim: ${creatorMemberError?.message ?? "unknown error"}`);
-    }
-
-    const applicantMember = creatorMember.find((member) => member.profile_id === applicantId);
-    if (!applicantMember) {
-        throw new Error("Anggota tim untuk pelamar tidak berhasil dibuat.");
-    }
-
-    const reminderDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    const { error: commitmentError } = await supabase.from("team_commitments").insert({
-        team_member_id: applicantMember.id,
-        hours_per_week: 5,
-        deadline_at: reminderDeadline,
-    });
-
-    if (commitmentError) {
-        throw new Error(`Gagal menyiapkan komitmen tim: ${commitmentError.message}`);
-    }
-
-    return team.id;
-}
-
 export async function acceptBoardApplication(formData: FormData) {
     const { user } = await requireCompletedProfile();
     const applicationId = formData.get("application_id");
@@ -907,7 +1197,7 @@ export async function acceptBoardApplication(formData: FormData) {
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: rawApplication, error: applicationError } = await supabase
+    const { data: applicationContext, error: applicationError } = await supabase
         .from("board_applications")
         .select("id, board_id, applicant_id, selected_role, competition_idea_boards!inner(user_id)")
         .eq("id", applicationId)
@@ -918,37 +1208,52 @@ export async function acceptBoardApplication(formData: FormData) {
         throw new Error(`Gagal memuat lamaran: ${applicationError.message}`);
     }
 
-    const application = rawApplication as { id: string; board_id: string; applicant_id: string; selected_role: string };
-    const teamId = await createTeamFromApplication(
-        application.board_id,
-        user.id,
-        application.applicant_id,
-        application.selected_role,
-    );
+    const application = applicationContext as {
+        id: string;
+        applicant_id: string;
+        board_id: string;
+        selected_role: string;
+    };
 
-    const { error } = await supabase
-        .from("board_applications")
-        .update({
-            status: "accepted",
-            responded_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", applicationId);
+    const { data: acceptanceResult, error: acceptanceError } = await supabase.rpc("accept_board_application", {
+        p_application_id: applicationId,
+    });
 
-    if (error) {
-        throw new Error(`Gagal menerima lamaran: ${error.message}`);
+    if (acceptanceError) {
+        throw new Error(`Gagal menerima lamaran: ${acceptanceError.message}`);
     }
 
-    await insertNotification(
-        application.applicant_id,
-        "application",
-        "Lamaran Anda diterima",
-        "Creator menerima lamaran Anda. Silakan konfirmasi komitmen tim.",
-        `/dashboard/teams/${teamId}`,
-    );
+    const acceptanceRow = acceptanceResult?.[0] ?? null;
+    if (!acceptanceRow) {
+        throw new Error("Lamaran diterima tetapi team tidak berhasil dipetakan.");
+    }
+
+    const { error: eventError } = await supabase.from("board_application_events").insert({
+        board_application_id: applicationId,
+        actor_id: user.id,
+        event_type: "accepted",
+        note: acceptanceRow.accepted_team_created ? "team_created" : "team_reused",
+    });
+
+    if (eventError) {
+        throw new Error(`Lamaran diterima tetapi event lamaran gagal dicatat: ${eventError.message}`);
+    }
+
+    await sendServerNotification({
+        type: "board_application_accepted",
+        applicantUserId: application.applicant_id,
+        teamId: acceptanceRow.accepted_team_id,
+    });
+    await insertTeamActivityEvent(acceptanceRow.accepted_team_id, user.id, "application_accepted", {
+        application_id: application.id,
+        applicant_id: application.applicant_id,
+        role_name: application.selected_role,
+        team_created: acceptanceRow.accepted_team_created,
+    });
 
     revalidatePath(`/dashboard/boards/${application.board_id}/review`);
-    revalidatePath(`/dashboard/teams/${teamId}`);
+    revalidatePath(`/dashboard/teams`);
+    revalidatePath(`/dashboard/teams/${acceptanceRow.accepted_team_id}`);
 }
 
 export async function rejectBoardApplication(formData: FormData) {
@@ -970,7 +1275,7 @@ export async function rejectBoardApplication(formData: FormData) {
         throw new Error(`Gagal memuat lamaran: ${applicationError.message}`);
     }
 
-    const application = rawApplication as { id: string; board_id: string; applicant_id: string };
+    const application = rawApplication as unknown as { id: string; board_id: string; applicant_id: string };
 
     const { error } = await supabase
         .from("board_applications")
@@ -985,13 +1290,10 @@ export async function rejectBoardApplication(formData: FormData) {
         throw new Error(`Gagal menolak lamaran: ${error.message}`);
     }
 
-    await insertNotification(
-        application.applicant_id,
-        "application",
-        "Lamaran Anda ditolak",
-        "Creator memilih pelamar lain untuk board ini. Cari board lain yang lebih cocok untuk skill Anda.",
-        "/dashboard/boards",
-    );
+    await sendServerNotification({
+        type: "board_application_rejected",
+        applicantUserId: application.applicant_id,
+    });
 
     revalidatePath(`/dashboard/boards/${application.board_id}/review`);
 }
@@ -1036,14 +1338,19 @@ export async function confirmTeamCommitment(
                     confirmed_at: now,
                     updated_at: now,
                 })
-                .eq("team_member_id", teamMember.id),
+                .eq("team_member_id", teamMember.id)
+                .select("id")
+                .maybeSingle(),
             supabase
                 .from("team_members")
                 .update({
                     confirmation_status: "confirmed",
                     updated_at: now,
                 })
-                .eq("id", teamMember.id),
+                .eq("id", teamMember.id)
+                .eq("profile_id", user.id)
+                .select("id, team_id, confirmation_status")
+                .maybeSingle(),
         ]);
 
         if (commitmentResult.error) {
@@ -1051,6 +1358,15 @@ export async function confirmTeamCommitment(
         }
         if (memberResult.error) {
             throw new Error(`Gagal memperbarui status anggota tim: ${memberResult.error.message}`);
+        }
+        if (!commitmentResult.data) {
+            throw new Error("Row komitmen tidak ditemukan atau tidak bisa diperbarui.");
+        }
+        if (!memberResult.data) {
+            throw new Error("Status anggota tim tidak berubah. Periksa policy RLS team_members.");
+        }
+        if (memberResult.data.confirmation_status !== "confirmed") {
+            throw new Error("Status anggota tim gagal berubah ke confirmed.");
         }
 
         const { data: allMembers, error: membersError } = await supabase
@@ -1065,17 +1381,25 @@ export async function confirmTeamCommitment(
         const allConfirmed = (allMembers ?? []).every((member) => member.confirmation_status === "confirmed");
 
         if (allConfirmed) {
-            const { data: teamRow } = await supabase.from("teams").select("creator_id, name").eq("id", teamMember.team_id).single();
+            const { data: teamRow } = await supabase
+                .from("teams")
+                .select("creator_id, name")
+                .eq("id", teamMember.team_id)
+                .single();
             if (teamRow) {
-                await insertNotification(
-                    teamRow.creator_id,
-                    "commitment",
-                    "Semua anggota telah konfirmasi",
-                    `Tim ${teamRow.name} siap mulai bekerja.`,
-                    `/dashboard/teams/${teamMember.team_id}`,
-                );
+                await sendServerNotification({
+                    type: "team_all_members_confirmed",
+                    teamId: teamMember.team_id,
+                    teamName: teamRow.name,
+                    userId: teamRow.creator_id,
+                });
             }
         }
+
+        await insertTeamActivityEvent(teamMember.team_id, user.id, "commitment_confirmed", {
+            team_member_id: teamMember.id,
+            hours_per_week: validationResult.data.hours_per_week,
+        });
 
         revalidatePath(`/dashboard/teams/${teamMember.team_id}`);
 
@@ -1114,15 +1438,15 @@ export async function sendCommitmentReminder(formData: FormData) {
         throw new Error("Anda tidak memiliki akses untuk mengirim reminder ini.");
     }
 
-    const memberRow = rawMemberRow as {
+    const memberRow = rawMemberRow as unknown as {
         id: string;
         profile_id: string;
         role_name: string;
         team_id: string;
         teams: { creator_id: string; name: string };
-        team_commitments: { id: string; last_reminded_at: string | null }[] | null;
+        team_commitments: { id: string; last_reminded_at: string | null } | null;
     };
-    const commitment = (memberRow.team_commitments?.[0] ?? null) as { id: string; last_reminded_at: string | null } | null;
+    const commitment = memberRow.team_commitments as { id: string; last_reminded_at: string | null } | null;
     if (!commitment) {
         throw new Error("Komitmen untuk anggota ini belum tersedia.");
     }
@@ -1147,13 +1471,16 @@ export async function sendCommitmentReminder(formData: FormData) {
         throw new Error(`Gagal memperbarui timestamp reminder: ${updateError.message}`);
     }
 
-    await insertNotification(
-        memberRow.profile_id,
-        "reminder",
-        "Reminder komitmen tim",
-        `Creator mengingatkan Anda untuk segera mengonfirmasi komitmen pada tim ${memberRow.teams.name}.`,
-        `/dashboard/teams/${memberRow.team_id}`,
-    );
+    await sendServerNotification({
+        type: "team_commitment_reminder",
+        teamId: memberRow.team_id,
+        teamName: memberRow.teams.name,
+        userId: memberRow.profile_id,
+    });
+    await insertTeamActivityEvent(memberRow.team_id, user.id, "commitment_reminder_sent", {
+        team_member_id: memberRow.id,
+        role_name: memberRow.role_name,
+    });
 
     revalidatePath(`/dashboard/teams/${memberRow.team_id}`);
 }
@@ -1168,7 +1495,9 @@ export async function reopenExpiredSlot(formData: FormData) {
     const supabase = await createServerSupabaseClient();
     const { data: rawMemberRow, error: memberError } = await supabase
         .from("team_members")
-        .select("id, team_id, profile_id, role_name, teams!inner(id, creator_id, board_id, name), team_commitments(id, deadline_at, confirmed_at)")
+        .select(
+            "id, team_id, profile_id, role_name, teams!inner(id, creator_id, board_id, name), team_commitments(id, deadline_at, confirmed_at)",
+        )
         .eq("id", teamMemberId)
         .eq("teams.creator_id", user.id)
         .maybeSingle();
@@ -1180,15 +1509,19 @@ export async function reopenExpiredSlot(formData: FormData) {
         throw new Error("Anda tidak memiliki akses untuk membuka ulang slot ini.");
     }
 
-    const memberRow = rawMemberRow as {
+    const memberRow = rawMemberRow as unknown as {
         id: string;
         profile_id: string;
         role_name: string;
         team_id: string;
         teams: { id: string; creator_id: string; board_id: string | null; name: string };
-        team_commitments: { id: string; deadline_at: string; confirmed_at: string | null }[] | null;
+        team_commitments: { id: string; deadline_at: string; confirmed_at: string | null } | null;
     };
-    const commitment = (memberRow.team_commitments?.[0] ?? null) as { id: string; deadline_at: string; confirmed_at: string | null } | null;
+    const commitment = memberRow.team_commitments as {
+        id: string;
+        deadline_at: string;
+        confirmed_at: string | null;
+    } | null;
     if (!commitment) {
         throw new Error("Komitmen anggota ini tidak ditemukan.");
     }
@@ -1226,13 +1559,17 @@ export async function reopenExpiredSlot(formData: FormData) {
         throw new Error(`Gagal membuka ulang status board: ${boardUpdate.error.message}`);
     }
 
-    await insertNotification(
-        user.id,
-        "commitment",
-        "Slot tim terbuka kembali",
-        `Slot ${memberRow.role_name} pada tim ${memberRow.teams.name} terbuka kembali karena komitmen tidak dikonfirmasi.`,
-        `/dashboard/teams/${memberRow.team_id}`,
-    );
+    await sendServerNotification({
+        type: "team_slot_reopened",
+        roleName: memberRow.role_name,
+        teamId: memberRow.team_id,
+        teamName: memberRow.teams.name,
+        userId: user.id,
+    });
+    await insertTeamActivityEvent(memberRow.team_id, user.id, "slot_reopened", {
+        team_member_id: memberRow.id,
+        role_name: memberRow.role_name,
+    });
 
     revalidatePath(`/dashboard/teams/${memberRow.team_id}`);
     if (memberRow.teams.board_id) {
@@ -1270,6 +1607,10 @@ export async function renameTeam(
             throw new Error(`Gagal mengganti nama tim: ${error.message}`);
         }
 
+        await insertTeamActivityEvent(validationResult.data.team_id, user.id, "team_renamed", {
+            team_name: validationResult.data.team_name,
+        });
+
         revalidatePath(`/dashboard/teams/${validationResult.data.team_id}`);
 
         return {
@@ -1281,6 +1622,68 @@ export async function renameTeam(
         return {
             ...teamRenameInitialState,
             formError: error instanceof Error ? error.message : "Terjadi kesalahan saat mengganti nama tim.",
+        };
+    }
+}
+
+export async function saveTeamResource(
+    _previousState: FormActionState<TeamResourceFieldName>,
+    formData: FormData,
+): Promise<FormActionState<TeamResourceFieldName>> {
+    try {
+        const { user } = await requireCompletedProfile();
+        const validationResult = safeParseTeamResource(formData);
+
+        if (!validationResult.success) {
+            return {
+                ...teamResourceInitialState,
+                formError: "Periksa kembali resource tim yang Anda tambahkan.",
+                fieldErrors: getFieldErrors<TeamResourceFieldName>(validationResult.error),
+            };
+        }
+
+        const supabase = await createServerSupabaseClient();
+        const { data: teamRow, error: teamError } = await supabase
+            .from("teams")
+            .select("id, creator_id")
+            .eq("id", validationResult.data.team_id)
+            .eq("creator_id", user.id)
+            .maybeSingle();
+
+        if (teamError) {
+            throw new Error(`Gagal memuat tim untuk resource: ${teamError.message}`);
+        }
+        if (!teamRow) {
+            throw new Error("Anda tidak memiliki akses untuk menambahkan resource tim.");
+        }
+
+        const { error: resourceError } = await supabase.from("team_resources").insert({
+            team_id: validationResult.data.team_id,
+            resource_type: validationResult.data.resource_type,
+            label: validationResult.data.label,
+            url: validationResult.data.url.length > 0 ? validationResult.data.url : null,
+        });
+
+        if (resourceError) {
+            throw new Error(`Gagal menyimpan resource tim: ${resourceError.message}`);
+        }
+
+        await insertTeamActivityEvent(validationResult.data.team_id, user.id, "resource_added", {
+            resource_type: validationResult.data.resource_type,
+            label: validationResult.data.label,
+        });
+
+        revalidatePath(`/dashboard/teams/${validationResult.data.team_id}`);
+
+        return {
+            ...teamResourceInitialState,
+            success: true,
+            message: "Resource tim berhasil ditambahkan.",
+        };
+    } catch (error) {
+        return {
+            ...teamResourceInitialState,
+            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menambahkan resource tim.",
         };
     }
 }
@@ -1313,7 +1716,7 @@ export async function recordCompetitionResult(
             throw new Error(`Gagal memuat tim: ${teamError.message}`);
         }
 
-        const teamRow = rawTeamRow as {
+        const teamRow = rawTeamRow as unknown as {
             id: string;
             creator_id: string;
             name: string;
@@ -1349,13 +1752,16 @@ export async function recordCompetitionResult(
         }
 
         await Promise.all(historyMembers.map((member) => refreshProfileSummary(member.profile_id)));
-        await insertNotification(
-            user.id,
-            "reminder",
-            "Saatnya memberi testimoni",
-            `Hasil untuk tim ${teamRow.name} sudah dicatat. Anda bisa mulai menulis testimoni untuk anggota lain.`,
-            `/dashboard/teams/${teamRow.id}`,
-        );
+        await sendServerNotification({
+            type: "testimonial_prompt",
+            teamId: teamRow.id,
+            teamName: teamRow.name,
+            userId: user.id,
+        });
+        await insertTeamActivityEvent(teamRow.id, user.id, "competition_result_recorded", {
+            result_summary: validationResult.data.result_summary,
+            competition_ended_at: validationResult.data.competition_ended_at,
+        });
 
         revalidatePath(`/dashboard/teams/${validationResult.data.team_id}`);
         revalidatePath("/dashboard/find-team");
@@ -1526,18 +1932,7 @@ export async function markNotificationRead(formData: FormData) {
         throw new Error("Notifikasi tidak valid.");
     }
 
-    const supabase = await createServerSupabaseClient();
-    const { error } = await supabase
-        .from("user_notifications")
-        .update({
-            is_read: true,
-        })
-        .eq("id", notificationId)
-        .eq("user_id", user.id);
-
-    if (error) {
-        throw new Error(`Gagal menandai notifikasi: ${error.message}`);
-    }
+    await markNotificationReadForUser(user.id, notificationId);
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/notifications");
@@ -1567,31 +1962,34 @@ export async function updateSettings(
         const reminderUpdates = validationResult.data.reminder_updates === "true";
 
         const supabase = await createServerSupabaseClient();
-        const [profileResult, preferencesResult] = await Promise.all([
-            supabase
-                .from("profiles")
-                .update({
-                    public_visibility: publicVisibility,
-                    show_competition_history: showCompetitionHistory,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", user.id),
-            supabase.from("notification_preferences").upsert({
-                user_id: user.id,
-                request_updates: requestUpdates,
-                board_updates: boardUpdates,
-                commitment_updates: commitmentUpdates,
-                reminder_updates: reminderUpdates,
+        const profileResult = await supabase
+            .from("profiles")
+            .update({
+                public_visibility: publicVisibility,
+                show_competition_history: showCompetitionHistory,
                 updated_at: new Date().toISOString(),
-            }),
-        ]);
+            })
+            .eq("id", user.id);
 
         if (profileResult.error) {
             throw new Error(`Gagal menyimpan pengaturan profil: ${profileResult.error.message}`);
         }
-        if (preferencesResult.error) {
-            throw new Error(`Gagal menyimpan preferensi notifikasi: ${preferencesResult.error.message}`);
-        }
+
+        await updateNotificationPreferences(user.id, {
+            request_updates: requestUpdates,
+            board_updates: boardUpdates,
+            commitment_updates: commitmentUpdates,
+            reminder_updates: reminderUpdates,
+        });
+
+        await insertPrivacyAuditEvent(user.id, "settings_updated", {
+            public_visibility: validationResult.data.public_visibility,
+            show_competition_history: validationResult.data.show_competition_history === "true",
+            request_updates: requestUpdates,
+            board_updates: boardUpdates,
+            commitment_updates: commitmentUpdates,
+            reminder_updates: reminderUpdates,
+        });
 
         revalidatePath("/dashboard/settings");
         revalidatePath("/dashboard/profile");

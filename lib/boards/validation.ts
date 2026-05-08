@@ -34,22 +34,13 @@ const competitionTypeOtherSchema = z.preprocess(
     (value: unknown) => (typeof value === "string" ? value : ""),
     z.string().trim().max(50, "Jenis lomba lainnya maksimal 50 karakter."),
 );
+const slotJsonSchema = z.string().trim().min(2, "Tambahkan minimal satu peran tim.");
 const roleNameSchema = z.string().trim().min(2, "Peran minimal 2 karakter.").max(50, "Peran maksimal 50 karakter.");
 const slotCountSchema = z.coerce
     .number()
     .int("Slot harus berupa angka bulat.")
     .min(1, "Minimal 1 slot.")
     .max(10, "Maksimal 10 slot.");
-
-const createSlotSchema = z.object({
-    slot_role_1: roleNameSchema,
-    slot_count_1: slotCountSchema,
-    slot_role_2: z.preprocess(
-        (value) => (typeof value === "string" ? value : ""),
-        z.string().trim().max(50, "Peran kedua maksimal 50 karakter."),
-    ),
-    slot_count_2: z.preprocess((value) => (value === "" || value === null ? undefined : value), slotCountSchema.optional()),
-});
 
 const deleteCompetitionIdeaBoardSchema = z.object({
     id: z.uuid("ID board ide tidak valid."),
@@ -65,9 +56,9 @@ const boardBaseSchema = z
         deadline: deadlineSchema,
         required_skills: requiredSkillsInputSchema,
         visibility: boardVisibilitySchema,
+        slots_json: slotJsonSchema,
         website: honeypotSchema,
     })
-    .merge(createSlotSchema)
     .superRefine((data, ctx) => {
         if (data.competition_type_select === "others" && data.competition_type_other.trim().length < 3) {
             ctx.addIssue({
@@ -115,11 +106,20 @@ const boardBaseSchema = z
             }
         });
 
-        if (data.slot_role_2.trim().length > 0 && data.slot_count_2 === undefined) {
+        try {
+            const slots = parseBoardSlotsJsonValue(data.slots_json);
+            if (slots.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["slots_json"],
+                    message: "Tambahkan minimal satu peran tim.",
+                });
+            }
+        } catch (error) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                path: ["slot_count_2"],
-                message: "Isi jumlah slot untuk peran kedua.",
+                path: ["slots_json"],
+                message: error instanceof Error ? error.message : "Struktur peran tim tidak valid.",
             });
         }
     });
@@ -153,6 +153,11 @@ export interface CompetitionIdeaBoardUpdatePayload extends CompetitionIdeaBoardP
     status: CompetitionIdeaBoardStatus;
 }
 
+interface ParsedBoardSlotInput {
+    roleName: unknown;
+    slotCount: unknown;
+}
+
 export function safeParseCreateCompetitionIdeaBoard(formData: FormData) {
     return createCompetitionIdeaBoardSchema.safeParse({
         title: formData.get("title"),
@@ -163,10 +168,7 @@ export function safeParseCreateCompetitionIdeaBoard(formData: FormData) {
         deadline: formData.get("deadline"),
         required_skills: formData.get("required_skills"),
         visibility: formData.get("visibility"),
-        slot_role_1: formData.get("slot_role_1"),
-        slot_count_1: formData.get("slot_count_1"),
-        slot_role_2: formData.get("slot_role_2"),
-        slot_count_2: formData.get("slot_count_2"),
+        slots_json: formData.get("slots_json"),
         website: formData.get("website"),
     });
 }
@@ -183,10 +185,7 @@ export function safeParseUpdateCompetitionIdeaBoard(formData: FormData) {
         required_skills: formData.get("required_skills"),
         visibility: formData.get("visibility"),
         status: formData.get("status"),
-        slot_role_1: formData.get("slot_role_1"),
-        slot_count_1: formData.get("slot_count_1"),
-        slot_role_2: formData.get("slot_role_2"),
-        slot_count_2: formData.get("slot_count_2"),
+        slots_json: formData.get("slots_json"),
         website: formData.get("website"),
     });
 }
@@ -200,21 +199,25 @@ export function safeParseDeleteCompetitionIdeaBoard(formData: FormData) {
 export function createCompetitionIdeaBoardPayload(
     data: z.infer<typeof createCompetitionIdeaBoardSchema>,
 ): CompetitionIdeaBoardPayload {
+    const requiredSkills = normalizeRequiredSkills(data.required_skills);
+
     return {
         title: data.title,
         summary: data.summary,
         competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
         description: data.description,
         deadline: createDeadlineDate(data.deadline).toISOString(),
-        requiredSkills: normalizeRequiredSkills(data.required_skills),
+        requiredSkills,
         visibility: data.visibility,
-        slots: buildSlots(data.slot_role_1, data.slot_count_1, data.slot_role_2, data.slot_count_2, data.required_skills),
+        slots: buildSlots(data.slots_json, requiredSkills),
     };
 }
 
 export function updateCompetitionIdeaBoardPayload(
     data: z.infer<typeof updateCompetitionIdeaBoardSchema>,
 ): CompetitionIdeaBoardUpdatePayload {
+    const requiredSkills = normalizeRequiredSkills(data.required_skills);
+
     return {
         id: data.id,
         title: data.title,
@@ -222,38 +225,57 @@ export function updateCompetitionIdeaBoardPayload(
         competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
         description: data.description,
         deadline: createDeadlineDate(data.deadline).toISOString(),
-        requiredSkills: normalizeRequiredSkills(data.required_skills),
+        requiredSkills,
         visibility: data.visibility,
-        slots: buildSlots(data.slot_role_1, data.slot_count_1, data.slot_role_2, data.slot_count_2, data.required_skills),
+        slots: buildSlots(data.slots_json, requiredSkills),
         status: data.status,
     };
 }
 
-function buildSlots(
-    roleOne: string,
-    slotCountOne: number,
-    roleTwo: string,
-    slotCountTwo: number | undefined,
-    requiredSkillsValue: string,
-): BoardSlotPayload[] {
-    const baseSkills = normalizeRequiredSkills(requiredSkillsValue);
-    const slots: BoardSlotPayload[] = [
-        {
-            roleName: roleOne.trim(),
-            slotCount: slotCountOne,
-            requiredSkills: baseSkills,
-        },
-    ];
+export function parseBoardSlotsJsonValue(slotsJson: string): { roleName: string; slotCount: number }[] {
+    let parsedValue: unknown;
 
-    if (roleTwo.trim().length > 0) {
-        slots.push({
-            roleName: roleTwo.trim(),
-            slotCount: slotCountTwo ?? 1,
-            requiredSkills: baseSkills,
-        });
+    try {
+        parsedValue = JSON.parse(slotsJson);
+    } catch {
+        throw new Error("Struktur peran tim tidak valid.");
     }
 
-    return slots;
+    if (!Array.isArray(parsedValue)) {
+        throw new Error("Struktur peran tim tidak valid.");
+    }
+
+    return parsedValue.map((item, index) => parseBoardSlotItem(item, index));
+}
+
+function parseBoardSlotItem(item: unknown, index: number): { roleName: string; slotCount: number } {
+    if (typeof item !== "object" || item === null) {
+        throw new Error(`Peran ke-${index + 1} tidak valid.`);
+    }
+
+    const slotItem = item as ParsedBoardSlotInput;
+    const roleNameResult = roleNameSchema.safeParse(slotItem.roleName);
+    if (!roleNameResult.success) {
+        throw new Error(roleNameResult.error.issues[0]?.message ?? `Peran ke-${index + 1} tidak valid.`);
+    }
+
+    const slotCountResult = slotCountSchema.safeParse(slotItem.slotCount);
+    if (!slotCountResult.success) {
+        throw new Error(slotCountResult.error.issues[0]?.message ?? `Jumlah slot ke-${index + 1} tidak valid.`);
+    }
+
+    return {
+        roleName: roleNameResult.data,
+        slotCount: slotCountResult.data,
+    };
+}
+
+function buildSlots(slotsJson: string, requiredSkills: string[]): BoardSlotPayload[] {
+    return parseBoardSlotsJsonValue(slotsJson).map((slot) => ({
+        roleName: slot.roleName,
+        slotCount: slot.slotCount,
+        requiredSkills,
+    }));
 }
 
 function resolveCompetitionType(competitionTypeSelect: CompetitionTypeOption, competitionTypeOther: string): string {

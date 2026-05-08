@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BoardList from "@/components/dashboard/BoardList";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getDashboardSnapshot, getOwnBoards } from "@/lib/dashboard/data";
@@ -49,6 +50,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                             <Link href="/dashboard/boards" className="brutal-button-secondary">
                                 Explore Boards
                             </Link>
+                            <Link href="/dashboard/teams" className="brutal-button-secondary">
+                                My Teams
+                            </Link>
                             <Link href="/dashboard/profile" className="brutal-button-secondary">
                                 Edit Profile
                             </Link>
@@ -88,12 +92,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     {boards.length > 0 ? (
                         <BoardList boards={boards.slice(0, 3)} />
                     ) : (
-                        <div className="brutal-panel bg-[var(--tm-paper-strong)] p-8">
-                            <p className="display-font text-4xl leading-none">Belum ada board aktif</p>
-                            <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
-                                Mulai dengan menerbitkan board publik pertama Anda agar kandidat lain bisa melamar.
-                            </p>
-                        </div>
+                        <DashboardEmptyState
+                            actionHref="/dashboard/boards/new"
+                            actionLabel="Buat board baru"
+                            title="Belum ada board aktif"
+                            body="Mulai dengan menerbitkan board publik pertama Anda agar kandidat lain bisa melamar."
+                        />
                     )}
                 </div>
 
@@ -106,6 +110,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     </div>
                     <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
                         <p className="display-font text-3xl leading-none">Notifikasi terbaru</p>
+                        <p className="mt-3 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                            Unread: {snapshot.unreadNotificationsCount}
+                        </p>
                         <div className="mt-4 grid gap-3">
                             {snapshot.notifications.length > 0 ? (
                                 snapshot.notifications.map((notification) => (
