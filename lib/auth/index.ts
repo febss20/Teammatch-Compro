@@ -2,8 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { getProfileRecord } from "@/lib/dashboard/data";
-import { runDashboardMaintenance } from "@/lib/dashboard/runtime";
+import { getProfileRecord } from "@/lib/profile/data";
 import type { ProfileRecord } from "@/lib/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -34,7 +33,6 @@ export async function getCurrentProfile(): Promise<ProfileRecord | null> {
 
 export async function requireCompletedProfile(): Promise<{ user: User; profile: ProfileRecord }> {
     const user = await requireUser();
-    await runDashboardMaintenance();
     const profile = await getProfileRecord(user.id, user.email);
 
     if (!profile) {

@@ -2,18 +2,7 @@ import Link from "next/link";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getTeamsForUser } from "@/lib/dashboard/data";
-
-function formatDate(date: string | null): string {
-    if (!date) {
-        return "Belum tersedia";
-    }
-
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(date));
-}
+import { formatDashboardDate } from "@/lib/shared/formatters";
 
 function resolveCommitmentStatusLabel(value: "confirmed" | "expired" | "pending" | null): string {
     if (value === "confirmed") {
@@ -63,7 +52,7 @@ export default async function TeamsIndexPage() {
                                     <h2 className="display-font text-4xl leading-none">{team.name}</h2>
                                     <p className="mt-3 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
                                         {team.competitionName ?? "Kompetisi belum dinamai"} / deadline{" "}
-                                        {formatDate(team.deadline)}
+                                        {formatDashboardDate(team.deadline)}
                                     </p>
                                 </div>
                             </div>

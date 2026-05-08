@@ -2,19 +2,12 @@
 
 import Link from "next/link";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import { formatDashboardDateCompact } from "@/lib/shared/formatters";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
 
 interface BoardDiscoveryListProps {
     boards: CompetitionIdeaBoardRecord[];
     currentType: string;
-}
-
-function formatDeadline(deadline: string) {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(deadline));
 }
 
 function isNewBoard(publishedAt: string | null) {
@@ -81,7 +74,8 @@ export default function BoardDiscoveryList({ boards, currentType }: BoardDiscove
 
                             <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                                 <div className="text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                                    Creator: {board.creatorName ?? "Anonymous"} / Deadline {formatDeadline(board.deadline)}
+                                    Creator: {board.creatorName ?? "Anonymous"} / Deadline{" "}
+                                    {formatDashboardDateCompact(board.deadline)}
                                 </div>
                                 <div className="flex flex-wrap gap-3">
                                     <Link href={`/dashboard/boards/${board.id}`} className="brutal-button-secondary">

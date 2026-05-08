@@ -4,16 +4,13 @@ import { useActionState } from "react";
 import { updateProfile } from "@/app/(dashboard)/dashboard/actions";
 import { profileInitialState } from "@/lib/forms";
 import { dashboardMonthLabels } from "@/lib/platform";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
 import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface ProfileEditorFormProps {
     competitionTypes: CompetitionTypeRecord[];
     profile: ProfileRecord;
     skills: SkillOption[];
-}
-
-function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string) {
-    return fieldErrors[fieldName]?.[0] ?? null;
 }
 
 export default function ProfileEditorForm({ competitionTypes, profile, skills }: ProfileEditorFormProps) {
@@ -40,9 +37,9 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                             defaultValue={profile.fullName ?? ""}
                             disabled={pending}
                         />
-                        {firstError(state.fieldErrors, "full_name") && (
+                        {getFirstFieldError(state.fieldErrors, "full_name") && (
                             <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                {firstError(state.fieldErrors, "full_name")}
+                                {getFirstFieldError(state.fieldErrors, "full_name")}
                             </p>
                         )}
                     </div>
@@ -104,9 +101,9 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                             </label>
                         ))}
                     </div>
-                    {firstError(state.fieldErrors, "skills") && (
+                    {getFirstFieldError(state.fieldErrors, "skills") && (
                         <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                            {firstError(state.fieldErrors, "skills")}
+                            {getFirstFieldError(state.fieldErrors, "skills")}
                         </p>
                     )}
 

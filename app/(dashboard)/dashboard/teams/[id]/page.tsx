@@ -16,32 +16,7 @@ import {
     getTeamResult,
     getTeamTestimonials,
 } from "@/lib/dashboard/data";
-
-function formatDateTime(date: string | null): string {
-    if (!date) {
-        return "Belum tersedia";
-    }
-
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(date));
-}
-
-function formatDate(date: string | null): string {
-    if (!date) {
-        return "Belum tersedia";
-    }
-
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(date));
-}
+import { formatDashboardDate, formatDashboardDateTime } from "@/lib/shared/formatters";
 
 function formatActivityLabel(eventType: string): string {
     if (eventType === "application_accepted") {
@@ -173,7 +148,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                             {team.competitionName ?? "Nama lomba belum ditetapkan"}
                         </p>
                         <p className="text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
-                            Deadline: {formatDate(team.deadline)}
+                            Deadline: {formatDashboardDate(team.deadline)}
                         </p>
                     </div>
 
@@ -191,6 +166,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                     <div className="grid gap-5">
                         {members.map((member) => {
                             const isSelf = member.profileId === user.id;
+                            const isConfirmed = member.confirmationStatus === "confirmed";
                             const isExpired = member.confirmationStatus === "expired";
 
                             return (
@@ -208,7 +184,11 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                         >
                                             {member.confirmationStatus}
                                         </span>
-                                        <CommitmentCountdown deadlineAt={member.commitmentDeadlineAt} />
+                                        {isConfirmed ? (
+                                            <span className="brutal-chip brutal-status-open">Komitmen dikonfirmasi</span>
+                                        ) : (
+                                            <CommitmentCountdown deadlineAt={member.commitmentDeadlineAt} />
+                                        )}
                                     </div>
 
                                     <div className="grid gap-4 md:grid-cols-[1fr_280px]">
@@ -217,8 +197,8 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                                 {member.fullName ?? "Anggota TeamMatch"}
                                             </p>
                                             <div className="grid gap-2 text-sm leading-7 text-[var(--tm-muted)]">
-                                                <p>Deadline komitmen: {formatDateTime(member.commitmentDeadlineAt)}</p>
-                                                <p>Last reminder: {formatDateTime(member.commitmentLastRemindedAt)}</p>
+                                                <p>Deadline komitmen: {formatDashboardDateTime(member.commitmentDeadlineAt)}</p>
+                                                <p>Last reminder: {formatDashboardDateTime(member.commitmentLastRemindedAt)}</p>
                                                 <p>
                                                     Jam komitmen saat ini:{" "}
                                                     {member.commitmentHoursPerWeek
@@ -229,14 +209,14 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                         </div>
 
                                         <div className="grid gap-3">
-                                            {isSelf && member.confirmationStatus !== "confirmed" && member.commitmentId && (
+                                            {isSelf && !isConfirmed && member.commitmentId && (
                                                 <CommitmentForm
                                                     defaultHours={member.commitmentHoursPerWeek ?? 5}
                                                     teamMemberId={member.id}
                                                 />
                                             )}
 
-                                            {isSelf && member.confirmationStatus !== "confirmed" && !member.commitmentId && (
+                                            {isSelf && !isConfirmed && !member.commitmentId && (
                                                 <div className="brutal-alert-error text-sm">
                                                     Record komitmen Anda belum tersambung ke tim aktif ini. Ini biasanya berasal
                                                     dari data team lama yang belum sinkron. Creator perlu menjalankan
@@ -244,39 +224,33 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                                 </div>
                                             )}
 
-                                            {isCreator &&
-                                                !isSelf &&
-                                                member.confirmationStatus !== "confirmed" &&
-                                                member.commitmentId && (
-                                                    <div className="grid gap-3">
-                                                        <form action={sendCommitmentReminder}>
+                                            {isCreator && !isSelf && !isConfirmed && member.commitmentId && (
+                                                <div className="grid gap-3">
+                                                    <form action={sendCommitmentReminder}>
+                                                        <input type="hidden" name="team_member_id" value={member.id} />
+                                                        <button type="submit" className="brutal-button-secondary w-full">
+                                                            Kirim reminder
+                                                        </button>
+                                                    </form>
+
+                                                    {isExpired && (
+                                                        <form action={reopenExpiredSlot}>
                                                             <input type="hidden" name="team_member_id" value={member.id} />
-                                                            <button type="submit" className="brutal-button-secondary w-full">
-                                                                Kirim reminder
+                                                            <button type="submit" className="brutal-button-danger w-full">
+                                                                Buka ulang slot
                                                             </button>
                                                         </form>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                                        {isExpired && (
-                                                            <form action={reopenExpiredSlot}>
-                                                                <input type="hidden" name="team_member_id" value={member.id} />
-                                                                <button type="submit" className="brutal-button-danger w-full">
-                                                                    Buka ulang slot
-                                                                </button>
-                                                            </form>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                            {isCreator &&
-                                                !isSelf &&
-                                                member.confirmationStatus !== "confirmed" &&
-                                                !member.commitmentId && (
-                                                    <div className="brutal-alert-error text-sm">
-                                                        Anggota ini sudah masuk tim tetapi record komitmennya belum tersambung.
-                                                        Sinkronkan data team lama terlebih dahulu sebelum mengirim reminder atau
-                                                        membuka ulang slot.
-                                                    </div>
-                                                )}
+                                            {isCreator && !isSelf && !isConfirmed && !member.commitmentId && (
+                                                <div className="brutal-alert-error text-sm">
+                                                    Anggota ini sudah masuk tim tetapi record komitmennya belum tersambung.
+                                                    Sinkronkan data team lama terlebih dahulu sebelum mengirim reminder atau
+                                                    membuka ulang slot.
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </article>
@@ -320,7 +294,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                 <div className="brutal-panel-soft p-4">
                                     <p className="display-font text-2xl leading-none">{teamResult.resultSummary}</p>
                                     <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
-                                        Dicatat pada {formatDate(teamResult.competitionEndedAt)}
+                                        Dicatat pada {formatDashboardDate(teamResult.competitionEndedAt)}
                                     </p>
                                 </div>
                             </div>
@@ -345,7 +319,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                             {formatActivityLabel(event.eventType)}
                                         </p>
                                         <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
-                                            {event.actorName ?? "Sistem"} / {formatDateTime(event.createdAt)}
+                                            {event.actorName ?? "Sistem"} / {formatDashboardDateTime(event.createdAt)}
                                         </p>
                                     </div>
                                 ))
@@ -384,7 +358,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                             <span className="brutal-chip bg-[var(--tm-accent-2)]">{member.roleName}</span>
                                             {existingTestimonial?.lockedAt && (
                                                 <span className="brutal-chip bg-[#d6e4ff]">
-                                                    Terkunci {formatDate(existingTestimonial.lockedAt)}
+                                                    Terkunci {formatDashboardDate(existingTestimonial.lockedAt)}
                                                 </span>
                                             )}
                                         </div>

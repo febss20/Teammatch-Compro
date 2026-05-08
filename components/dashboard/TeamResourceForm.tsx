@@ -3,13 +3,10 @@
 import { useActionState } from "react";
 import { saveTeamResource } from "@/app/(dashboard)/dashboard/actions";
 import { teamResourceInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
 
 interface TeamResourceFormProps {
     teamId: string;
-}
-
-function firstError(fieldErrors: Partial<Record<string, string[]>>, fieldName: string): string | null {
-    return fieldErrors[fieldName]?.[0] ?? null;
 }
 
 export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
@@ -33,9 +30,9 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                     placeholder="docs, chat, task-board"
                     disabled={pending}
                 />
-                {firstError(state.fieldErrors, "resource_type") && (
+                {getFirstFieldError(state.fieldErrors, "resource_type") && (
                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                        {firstError(state.fieldErrors, "resource_type")}
+                        {getFirstFieldError(state.fieldErrors, "resource_type")}
                     </p>
                 )}
             </div>
@@ -45,8 +42,10 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                     Label
                 </label>
                 <input id="label" name="label" className="brutal-input" placeholder="Notion Sprint Board" disabled={pending} />
-                {firstError(state.fieldErrors, "label") && (
-                    <p className="text-sm font-semibold text-[var(--tm-danger)]">{firstError(state.fieldErrors, "label")}</p>
+                {getFirstFieldError(state.fieldErrors, "label") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "label")}
+                    </p>
                 )}
             </div>
 
@@ -55,8 +54,10 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                     URL
                 </label>
                 <input id="url" name="url" className="brutal-input" placeholder="https://..." disabled={pending} />
-                {firstError(state.fieldErrors, "url") && (
-                    <p className="text-sm font-semibold text-[var(--tm-danger)]">{firstError(state.fieldErrors, "url")}</p>
+                {getFirstFieldError(state.fieldErrors, "url") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "url")}
+                    </p>
                 )}
             </div>
 
