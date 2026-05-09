@@ -10,14 +10,14 @@ export async function persistProfileStepOne(
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+            id: userId,
             full_name: payload.full_name,
             campus_name: payload.campus_name,
             username: payload.username,
             bio: payload.bio,
             updated_at: new Date().toISOString(),
         })
-        .eq("id", userId);
 
     if (error) {
         throw new Error(`Gagal menyimpan identitas profil: ${error.message}`);
@@ -26,13 +26,16 @@ export async function persistProfileStepOne(
 
 export async function persistProfileStepTwo(
     userId: string,
-    payload: { skills: string[]; competition_types: string[] },
+    payload: { skills: string[]; custom_skills: string[]; competition_types: string[]; custom_competition_types: string[] },
 ): Promise<void> {
     const supabase = await createServerSupabaseClient();
-    const [deleteSkillsResult, deleteCompetitionsResult] = await Promise.all([
-        supabase.from("profile_skills").delete().eq("profile_id", userId),
-        supabase.from("profile_competition_preferences").delete().eq("profile_id", userId),
-    ]);
+    const [deleteSkillsResult, deleteCompetitionsResult, deleteCustomSkillsResult, deleteCustomCompetitionsResult] =
+        await Promise.all([
+            supabase.from("profile_skills").delete().eq("profile_id", userId),
+            supabase.from("profile_competition_preferences").delete().eq("profile_id", userId),
+            supabase.from("profile_custom_skills").delete().eq("profile_id", userId),
+            supabase.from("profile_custom_competition_type").delete().eq("profile_id", userId),
+        ]);
 
     if (deleteSkillsResult.error) {
         throw new Error(`Gagal merapikan skill profil: ${deleteSkillsResult.error.message}`);
@@ -40,6 +43,14 @@ export async function persistProfileStepTwo(
 
     if (deleteCompetitionsResult.error) {
         throw new Error(`Gagal merapikan minat lomba: ${deleteCompetitionsResult.error.message}`);
+    }
+
+    if (deleteCustomSkillsResult.error) {
+        throw new Error(`Gagal merapikan skill custom: ${deleteCustomSkillsResult.error.message}`);
+    }
+
+    if (deleteCustomCompetitionsResult.error) {
+        throw new Error(`Gagal merapikan lomba custom: ${deleteCustomCompetitionsResult.error.message}`);
     }
 
     if (payload.skills.length > 0) {
@@ -55,6 +66,20 @@ export async function persistProfileStepTwo(
         }
     }
 
+    if (payload.custom_skills.length > 0) {
+        const { error } = await supabase.from("profile_custom_skills").insert(
+            payload.custom_skills.map((label) => ({
+                profile_id: userId,
+                label,
+                normalized_label: label.trim().toLowerCase().replace(/\s+/g, " "),
+            })),
+        );
+
+        if (error) {
+            throw new Error(`Gagal menyimpan skill custom: ${error.message}`);
+        }
+    }
+
     if (payload.competition_types.length > 0) {
         const { error } = await supabase.from("profile_competition_preferences").insert(
             payload.competition_types.map((competitionTypeId) => ({
@@ -65,6 +90,20 @@ export async function persistProfileStepTwo(
 
         if (error) {
             throw new Error(`Gagal menyimpan minat lomba: ${error.message}`);
+        }
+    }
+
+    if (payload.custom_competition_types.length > 0) {
+        const { error } = await supabase.from("profile_custom_competition_type").insert(
+            payload.custom_competition_types.map((label) => ({
+                profile_id: userId,
+                label,
+                normalized_label: label.trim().toLowerCase().replace(/\s+/g, " "),
+            })),
+        );
+
+        if (error) {
+            throw new Error(`Gagal menyimpan jenis lomba custom: ${error.message}`);
         }
     }
 }

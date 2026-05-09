@@ -22,6 +22,16 @@ interface CompetitionLinkRow {
     } | null;
 }
 
+interface CustomSkillRow {
+    id: string;
+    label: string;
+}
+
+interface CustomCompetitionTypeRow {
+    id: string;
+    label: string;
+}
+
 export async function getTaxonomies(): Promise<{
     skills: SkillOption[];
     competitionTypes: CompetitionTypeRecord[];
@@ -57,6 +67,8 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         { data: skillLinks, error: skillsError },
         { data: competitionLinks, error: competitionError },
         { data: availabilityRow, error: availabilityError },
+        { data: customSkills, error: customSkillsError },
+        { data: customCompetitions, error: customCompetitionsError },
     ] = await Promise.all([
         supabase
             .from("profiles")
@@ -75,6 +87,8 @@ export async function getProfileRecord(profileId: string, email?: string | null)
             .select("available_months, hours_per_week")
             .eq("profile_id", profileId)
             .maybeSingle(),
+        supabase.from("profile_custom_skills").select("id, label").eq("profile_id", profileId),
+        supabase.from("profile_custom_competition_type").select("id, label").eq("profile_id", profileId),
     ]);
 
     if (profileError) {
@@ -97,33 +111,61 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         throw new Error(`Gagal memuat availability profil: ${availabilityError.message}`);
     }
 
+    if (customSkillsError) {
+        throw new Error(`Gagal memuat skill custom: ${customSkillsError.message}`);
+    }
+
+    if (customCompetitionsError) {
+        throw new Error(`Gagal memuat jenis lomba custom: ${customCompetitionsError.message}`);
+    }
+
     const skillLinkRows = (skillLinks ?? []) as unknown as SkillLinkRow[];
     const competitionLinkRows = (competitionLinks ?? []) as unknown as CompetitionLinkRow[];
+    const customSkillRows = (customSkills ?? []) as unknown as CustomSkillRow[];
+    const customCompetitionRows = (customCompetitions ?? []) as unknown as CustomCompetitionTypeRow[];
 
-    const skills = skillLinkRows
+    const taxonomySkills = skillLinkRows
         .map((item) => item.skill_taxonomy)
         .filter(Boolean)
         .map((item) => mapSkill(item as { id: string; slug: string; label: string; category: string }));
-    const competitionTypes = competitionLinkRows
+
+    const customSkillsFormatted = customSkillRows.map((item) => ({
+        id: item.id,
+        slug: `custom-${item.id}`,
+        label: item.label,
+        category: "Custom",
+    }));
+
+    const competitionTypesFormatted = competitionLinkRows
         .map((item) => item.competition_type_taxonomy)
         .filter(Boolean)
         .map((item) => mapCompetitionType(item as { id: string; slug: string; label: string; recommended_skills: string[] }));
+
+    const customCompetitionsFormatted = customCompetitionRows.map((item) => ({
+        id: item.id,
+        slug: `custom-${item.id}`,
+        label: item.label,
+        recommendedSkills: [],
+    }));
+
+    const allSkills = [...taxonomySkills, ...customSkillsFormatted];
+    const allCompetitionTypes = [...competitionTypesFormatted, ...customCompetitionsFormatted];
 
     const completionScore = [
         profileRow.full_name,
         profileRow.campus_name,
         profileRow.username,
         profileRow.bio,
-        skills.length > 0 ? "skills" : "",
-        competitionTypes.length > 0 ? "competitionTypes" : "",
+        allSkills.length > 0 ? "skills" : "",
+        allCompetitionTypes.length > 0 ? "competitionTypes" : "",
         availabilityRow?.available_months?.length ? "availability" : "",
     ].filter(Boolean).length;
 
     return mapProfileRecord({
         ...profileRow,
         email,
-        skills,
-        competitionTypes,
+        skills: allSkills,
+        competitionTypes: allCompetitionTypes,
         availableMonths: (availabilityRow?.available_months ?? []) as DashboardMonth[],
         hoursPerWeek: availabilityRow?.hours_per_week ?? null,
         completionScore: Math.round((completionScore / 7) * 100),

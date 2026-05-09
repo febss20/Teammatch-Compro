@@ -15,6 +15,7 @@ interface RoleSlotInput {
     id: string;
     roleName: string;
     slotCount: string;
+    requiredSkills: string;
 }
 
 interface BoardComposerState {
@@ -66,6 +67,7 @@ function createEmptySlot(roleName: string): RoleSlotInput {
         id: createSlotId(),
         roleName,
         slotCount: "1",
+        requiredSkills: "",
     };
 }
 
@@ -75,6 +77,7 @@ function createInitialSlots(draft: BoardDraftRecord | null): RoleSlotInput[] {
             id: createSlotId(),
             roleName: slot.roleName,
             slotCount: String(slot.slotCount),
+            requiredSkills: (slot.requiredSkills ?? []).join(", "),
         }));
     }
 
@@ -106,6 +109,10 @@ function serializeSlots(slots: RoleSlotInput[]): string {
         slots.map((slot) => ({
             roleName: slot.roleName,
             slotCount: Number(slot.slotCount),
+            requiredSkills: slot.requiredSkills
+                .split(",")
+                .map((skill) => skill.trim())
+                .filter((skill) => skill.length > 0),
         })),
     );
 }
@@ -157,7 +164,7 @@ function appendSuggestedSkill(requiredSkills: string, suggestedSkill: string): s
 function updateSlotValue(
     slots: RoleSlotInput[],
     slotId: string,
-    key: "roleName" | "slotCount",
+    key: "roleName" | "slotCount" | "requiredSkills",
     value: string,
 ): RoleSlotInput[] {
     return slots.map((slot) => (slot.id === slotId ? { ...slot, [key]: value } : slot));
@@ -439,47 +446,6 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                             </div>
 
                             <div className="grid gap-6">
-                                <div className="grid gap-2">
-                                    <label htmlFor="required_skills" className="brutal-label">
-                                        Skill yang Dibutuhkan
-                                    </label>
-                                    <input
-                                        id="required_skills"
-                                        name="required_skills"
-                                        className="brutal-input"
-                                        disabled={pending}
-                                        placeholder="UI/UX, Frontend React, Pitch Deck"
-                                        value={composerState.requiredSkills}
-                                        onChange={(event) =>
-                                            setComposerState((current) => ({ ...current, requiredSkills: event.target.value }))
-                                        }
-                                    />
-                                    {firstError(state.fieldErrors, "required_skills") && (
-                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                                            {firstError(state.fieldErrors, "required_skills")}
-                                        </p>
-                                    )}
-                                    {suggestedSkills.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {suggestedSkills.map((skill) => (
-                                                <button
-                                                    key={skill}
-                                                    type="button"
-                                                    className="brutal-chip bg-white"
-                                                    onClick={() =>
-                                                        setComposerState((current) => ({
-                                                            ...current,
-                                                            requiredSkills: appendSuggestedSkill(current.requiredSkills, skill),
-                                                        }))
-                                                    }
-                                                >
-                                                    + {skill}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
                                 <div className="grid gap-4">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <label className="brutal-label">Daftar Peran</label>
@@ -567,6 +533,62 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                                     Hapus
                                                 </button>
                                             </div>
+
+                                            <div className="col-span-full grid gap-2">
+                                                <label htmlFor={`slot-skills-${slot.id}`} className="brutal-label">
+                                                    Skill yang Dibutuhkan untuk {slot.roleName || `Peran ${index + 1}`}
+                                                </label>
+                                                <input
+                                                    id={`slot-skills-${slot.id}`}
+                                                    className="brutal-input"
+                                                    disabled={pending}
+                                                    placeholder="React, TypeScript, UI Design"
+                                                    value={slot.requiredSkills}
+                                                    onChange={(event) =>
+                                                        setComposerState((current) => ({
+                                                            ...current,
+                                                            slots: updateSlotValue(
+                                                                current.slots,
+                                                                slot.id,
+                                                                "requiredSkills",
+                                                                event.target.value,
+                                                            ),
+                                                        }))
+                                                    }
+                                                />
+                                                {createSuggestedSkills(
+                                                    competitionTypes,
+                                                    composerState.selectedCompetitionType,
+                                                    slot.requiredSkills,
+                                                ).length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {createSuggestedSkills(
+                                                            competitionTypes,
+                                                            composerState.selectedCompetitionType,
+                                                            slot.requiredSkills,
+                                                        ).map((skill) => (
+                                                            <button
+                                                                key={`${slot.id}-${skill}`}
+                                                                type="button"
+                                                                className="brutal-chip bg-white"
+                                                                onClick={() =>
+                                                                    setComposerState((current) => ({
+                                                                        ...current,
+                                                                        slots: updateSlotValue(
+                                                                            current.slots,
+                                                                            slot.id,
+                                                                            "requiredSkills",
+                                                                            appendSuggestedSkill(slot.requiredSkills, skill),
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                            >
+                                                                + {skill}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
 
@@ -639,6 +661,22 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                         <p className="mt-2 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
                                             {slot.slotCount || "1"} slot
                                         </p>
+                                        {slot.requiredSkills && (
+                                            <div className="mt-3 flex flex-wrap gap-1">
+                                                {slot.requiredSkills
+                                                    .split(",")
+                                                    .map((s) => s.trim())
+                                                    .filter((s) => s)
+                                                    .map((skill) => (
+                                                        <span
+                                                            key={skill}
+                                                            className="text-xs bg-white px-2 py-1 rounded text-[var(--tm-line)]"
+                                                        >
+                                                            {skill}
+                                                        </span>
+                                                    ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

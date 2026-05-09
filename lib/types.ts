@@ -58,7 +58,7 @@ export interface SkillOption {
 
 export interface CompetitionTypeRecord {
     id: string;
-    slug: CompetitionTypeOption;
+    slug: CompetitionTypeOption | string;
     label: string;
     recommendedSkills: string[];
 }
@@ -260,7 +260,7 @@ export type CompetitionIdeaBoardFieldName =
 export type LoginFieldName = "email" | "password" | "next";
 export type RegisterFieldName = "email" | "password" | "confirm_password";
 export type ProfileStepOneFieldName = "full_name" | "campus_name" | "username" | "bio";
-export type ProfileStepTwoFieldName = "skills" | "competition_types";
+export type ProfileStepTwoFieldName = "skills" | "custom_skills" | "competition_types" | "custom_competition_types";
 export type ProfileStepThreeFieldName =
     | "available_months"
     | "hours_per_week"

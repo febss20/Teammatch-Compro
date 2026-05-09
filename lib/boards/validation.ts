@@ -28,7 +28,6 @@ const deadlineSchema = z.iso.date("Deadline lomba tidak valid.");
 const requiredSkillsInputSchema = z
     .string()
     .trim()
-    .min(1, "Skill yang dibutuhkan wajib diisi.")
     .max(500, "Daftar skill terlalu panjang.");
 const competitionTypeOtherSchema = z.preprocess(
     (value: unknown) => (typeof value === "string" ? value : ""),
@@ -81,13 +80,7 @@ const boardBaseSchema = z
         }
 
         const normalizedSkills = normalizeRequiredSkills(data.required_skills);
-        if (normalizedSkills.length === 0) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: ["required_skills"],
-                message: "Masukkan minimal 1 skill yang dibutuhkan.",
-            });
-        }
+
         if (normalizedSkills.length > 10) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -114,7 +107,30 @@ const boardBaseSchema = z
                     path: ["slots_json"],
                     message: "Tambahkan minimal satu peran tim.",
                 });
+                return;
             }
+
+            const hasAnySlotSkill = slots.some((slot) => (slot.requiredSkills?.length ?? 0) > 0);
+            const hasGlobalSkill = normalizedSkills.length > 0;
+
+            if (!hasAnySlotSkill && !hasGlobalSkill) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["slots_json"],
+                    message: "Tambahkan skill untuk minimal satu peran atau isi skill global.",
+                });
+            }
+
+            slots.forEach((slot, slotIndex) => {
+                const slotSkills = slot.requiredSkills ?? [];
+                if (slotSkills.length === 0 && normalizedSkills.length === 0) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ["slots_json"],
+                        message: `Peran ke-${slotIndex + 1} (${slot.roleName}) harus memiliki skill requirement.`,
+                    });
+                }
+            });
         } catch (error) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -156,6 +172,7 @@ export interface CompetitionIdeaBoardUpdatePayload extends CompetitionIdeaBoardP
 interface ParsedBoardSlotInput {
     roleName: unknown;
     slotCount: unknown;
+    requiredSkills?: unknown;
 }
 
 export function safeParseCreateCompetitionIdeaBoard(formData: FormData) {
@@ -199,7 +216,18 @@ export function safeParseDeleteCompetitionIdeaBoard(formData: FormData) {
 export function createCompetitionIdeaBoardPayload(
     data: z.infer<typeof createCompetitionIdeaBoardSchema>,
 ): CompetitionIdeaBoardPayload {
-    const requiredSkills = normalizeRequiredSkills(data.required_skills);
+    const globalRequiredSkills = normalizeRequiredSkills(data.required_skills);
+    const slots = buildSlots(data.slots_json, globalRequiredSkills);
+
+    const unionSkills = new Map<string, string>();
+    globalRequiredSkills.forEach((skill) => {
+        unionSkills.set(skill.toLowerCase(), skill);
+    });
+    slots.forEach((slot) => {
+        slot.requiredSkills.forEach((skill) => {
+            unionSkills.set(skill.toLowerCase(), skill);
+        });
+    });
 
     return {
         title: data.title,
@@ -207,16 +235,27 @@ export function createCompetitionIdeaBoardPayload(
         competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
         description: data.description,
         deadline: createDeadlineDate(data.deadline).toISOString(),
-        requiredSkills,
+        requiredSkills: Array.from(unionSkills.values()),
         visibility: data.visibility,
-        slots: buildSlots(data.slots_json, requiredSkills),
+        slots,
     };
 }
 
 export function updateCompetitionIdeaBoardPayload(
     data: z.infer<typeof updateCompetitionIdeaBoardSchema>,
 ): CompetitionIdeaBoardUpdatePayload {
-    const requiredSkills = normalizeRequiredSkills(data.required_skills);
+    const globalRequiredSkills = normalizeRequiredSkills(data.required_skills);
+    const slots = buildSlots(data.slots_json, globalRequiredSkills);
+
+    const unionSkills = new Map<string, string>();
+    globalRequiredSkills.forEach((skill) => {
+        unionSkills.set(skill.toLowerCase(), skill);
+    });
+    slots.forEach((slot) => {
+        slot.requiredSkills.forEach((skill) => {
+            unionSkills.set(skill.toLowerCase(), skill);
+        });
+    });
 
     return {
         id: data.id,
@@ -225,14 +264,14 @@ export function updateCompetitionIdeaBoardPayload(
         competitionType: resolveCompetitionType(data.competition_type_select, data.competition_type_other),
         description: data.description,
         deadline: createDeadlineDate(data.deadline).toISOString(),
-        requiredSkills,
+        requiredSkills: Array.from(unionSkills.values()),
         visibility: data.visibility,
-        slots: buildSlots(data.slots_json, requiredSkills),
+        slots,
         status: data.status,
     };
 }
 
-export function parseBoardSlotsJsonValue(slotsJson: string): { roleName: string; slotCount: number }[] {
+export function parseBoardSlotsJsonValue(slotsJson: string): { roleName: string; slotCount: number; requiredSkills?: string[] }[] {
     let parsedValue: unknown;
 
     try {
@@ -248,7 +287,7 @@ export function parseBoardSlotsJsonValue(slotsJson: string): { roleName: string;
     return parsedValue.map((item, index) => parseBoardSlotItem(item, index));
 }
 
-function parseBoardSlotItem(item: unknown, index: number): { roleName: string; slotCount: number } {
+function parseBoardSlotItem(item: unknown, index: number): { roleName: string; slotCount: number; requiredSkills?: string[] } {
     if (typeof item !== "object" || item === null) {
         throw new Error(`Peran ke-${index + 1} tidak valid.`);
     }
@@ -264,17 +303,30 @@ function parseBoardSlotItem(item: unknown, index: number): { roleName: string; s
         throw new Error(slotCountResult.error.issues[0]?.message ?? `Jumlah slot ke-${index + 1} tidak valid.`);
     }
 
+    const requiredSkillsArray = Array.isArray(slotItem.requiredSkills) ? slotItem.requiredSkills : [];
+    const validatedSkills = requiredSkillsArray
+        .map((skill) => {
+            const result = skillTokenSchema.safeParse(skill);
+            if (!result.success) {
+                throw new Error(result.error.issues[0]?.message ?? `Skill peran ke-${index + 1} tidak valid.`);
+            }
+            return result.data;
+        })
+        .filter((skill) => skill.length > 0);
+
     return {
         roleName: roleNameResult.data,
         slotCount: slotCountResult.data,
+        requiredSkills: validatedSkills.length > 0 ? validatedSkills : undefined,
     };
 }
 
-function buildSlots(slotsJson: string, requiredSkills: string[]): BoardSlotPayload[] {
-    return parseBoardSlotsJsonValue(slotsJson).map((slot) => ({
+function buildSlots(slotsJson: string, globalRequiredSkills: string[]): BoardSlotPayload[] {
+    const slots = parseBoardSlotsJsonValue(slotsJson);
+    return slots.map((slot) => ({
         roleName: slot.roleName,
         slotCount: slot.slotCount,
-        requiredSkills,
+        requiredSkills: slot.requiredSkills && slot.requiredSkills.length > 0 ? slot.requiredSkills : globalRequiredSkills,
     }));
 }
 
