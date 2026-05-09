@@ -17,22 +17,31 @@ interface ProfileEditorFormProps {
 export default function ProfileEditorForm({ competitionTypes, profile, skills }: ProfileEditorFormProps) {
     const [state, formAction, pending] = useActionState(updateProfile, profileInitialState);
 
-    const selectedSkillIds = new Set(profile.skills.map((skill) => skill.id));
-    const selectedCompetitionTypeIds = new Set(profile.competitionTypes.map((competitionType) => competitionType.id));
+    const customSkills = profile.skills.filter((skill) => skill.slug.startsWith("custom-"));
+    const customCompetitions = profile.competitionTypes.filter((comp) => comp.slug.startsWith("custom-"));
+
+    const savedTaxonomySkillIds = new Set(
+        profile.skills
+            .filter((skill) => !skill.slug.startsWith("custom-"))
+            .map((skill) => skill.id)
+    );
+    const savedTaxonomyCompetitionIds = new Set(
+        profile.competitionTypes
+            .filter((comp) => !comp.slug.startsWith("custom-"))
+            .map((comp) => comp.id)
+    );
     const selectedMonths = new Set(profile.availableMonths);
 
-    // Separate taxonomy from custom
-    const taxonomySkills = profile.skills.filter((skill) => !skill.slug.startsWith("custom-"));
-    const customSkills = profile.skills.filter((skill) => skill.slug.startsWith("custom-"));
-    const taxonomyCompetitions = profile.competitionTypes.filter((comp) => !comp.slug.startsWith("custom-"));
-    const customCompetitions = profile.competitionTypes.filter((comp) => comp.slug.startsWith("custom-"));
+    const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
+    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] = useState<Set<string>>(savedTaxonomyCompetitionIds);
 
     const [showCustomSkills, setShowCustomSkills] = useState(customSkills.length > 0);
     const [showCustomCompetitions, setShowCustomCompetitions] = useState(customCompetitions.length > 0);
     const [customSkillsCount, setCustomSkillsCount] = useState(customSkills.length);
     const [customCompetitionsCount, setCustomCompetitionsCount] = useState(customCompetitions.length);
 
-    const totalSkills = taxonomySkills.length + customSkillsCount;
+    const totalSkills = selectedTaxonomySkillIds.size + customSkillsCount;
+    const totalCompetitions = selectedTaxonomyCompetitionIds.size + customCompetitionsCount;
 
     return (
         <form action={formAction} className="brutal-stack">
@@ -105,21 +114,32 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                             <span className="text-sm text-[var(--tm-muted)]">{totalSkills}/5</span>
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
-                            {skills.map((skill) => (
-                                <label key={skill.id} className="brutal-panel-soft flex items-center gap-3 p-4">
-                                    <input
-                                        type="checkbox"
-                                        name="skills"
-                                        value={skill.id}
-                                        defaultChecked={selectedSkillIds.has(skill.id)}
-                                        disabled={pending}
-                                    />
-                                    <span>
-                                        <span className="display-font block text-xl leading-none">{skill.label}</span>
-                                        <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
-                                    </span>
-                                </label>
-                            ))}
+                            {skills
+                                .filter((skill) => skill.label.toLowerCase() !== "lainnya")
+                                .map((skill) => (
+                                    <label key={skill.id} className="brutal-panel-soft flex items-center gap-3 p-4">
+                                        <input
+                                            type="checkbox"
+                                            name="skills"
+                                            value={skill.id}
+                                            defaultChecked={savedTaxonomySkillIds.has(skill.id)}
+                                            onChange={(e) => {
+                                                const newSet = new Set(selectedTaxonomySkillIds);
+                                                if (e.target.checked) {
+                                                    newSet.add(skill.id);
+                                                } else {
+                                                    newSet.delete(skill.id);
+                                                }
+                                                setSelectedTaxonomySkillIds(newSet);
+                                            }}
+                                            disabled={pending}
+                                        />
+                                        <span>
+                                            <span className="display-font block text-xl leading-none">{skill.label}</span>
+                                            <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
+                                        </span>
+                                    </label>
+                                ))}
                         </div>
 
                         <label className="brutal-panel-soft flex items-center gap-3 p-4">
@@ -138,7 +158,7 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                                 label="Skill Custom"
                                 placeholder="Ketik skill lainnya, tekan Enter..."
                                 maxItems={5}
-                                currentCount={taxonomySkills.length}
+                                currentCount={selectedTaxonomySkillIds.size}
                                 disabled={pending}
                                 defaultItems={customSkills.map((s) => s.label)}
                                 onItemsChange={(items) => setCustomSkillsCount(items.length)}
@@ -154,23 +174,37 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                     </div>
 
                     <div className="grid gap-3">
-                        <p className="brutal-label">Jenis Lomba Diminati</p>
+                        <div className="flex items-center justify-between">
+                            <p className="brutal-label">Jenis Lomba Diminati</p>
+                            <span className="text-sm text-[var(--tm-muted)]">{totalCompetitions}/5</span>
+                        </div>
                         <div className="grid gap-3 md:grid-cols-2">
-                            {competitionTypes.map((competitionType) => (
-                                <label
-                                    key={competitionType.id}
-                                    className="brutal-panel-soft flex items-center gap-3 p-4"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        name="competition_types"
-                                        value={competitionType.id}
-                                        defaultChecked={selectedCompetitionTypeIds.has(competitionType.id)}
-                                        disabled={pending}
-                                    />
-                                    <span className="display-font text-xl leading-none">{competitionType.label}</span>
-                                </label>
-                            ))}
+                            {competitionTypes
+                                .filter((ct) => ct.label.toLowerCase() !== "lainnya")
+                                .map((competitionType) => (
+                                    <label
+                                        key={competitionType.id}
+                                        className="brutal-panel-soft flex items-center gap-3 p-4"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            name="competition_types"
+                                            value={competitionType.id}
+                                            defaultChecked={savedTaxonomyCompetitionIds.has(competitionType.id)}
+                                            disabled={pending}
+                                            onChange={(e) => {
+                                                const newSet = new Set(selectedTaxonomyCompetitionIds);
+                                                if (e.target.checked) {
+                                                    newSet.add(competitionType.id);
+                                                } else {
+                                                    newSet.delete(competitionType.id);
+                                                }
+                                                setSelectedTaxonomyCompetitionIds(newSet);
+                                            }}
+                                        />
+                                        <span className="display-font text-xl leading-none">{competitionType.label}</span>
+                                    </label>
+                                ))}
                         </div>
 
                         <label className="brutal-panel-soft flex items-center gap-3 p-4">
@@ -189,7 +223,7 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                                 label="Jenis Lomba Custom"
                                 placeholder="Ketik jenis lomba lainnya, tekan Enter..."
                                 maxItems={5}
-                                currentCount={taxonomyCompetitions.length}
+                                currentCount={selectedTaxonomyCompetitionIds.size}
                                 disabled={pending}
                                 defaultItems={customCompetitions.map((c) => c.label)}
                                 onItemsChange={(items) => setCustomCompetitionsCount(items.length)}
