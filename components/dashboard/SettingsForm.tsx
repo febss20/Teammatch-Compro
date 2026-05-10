@@ -26,7 +26,7 @@ export default function SettingsForm({ preferences, profile }: SettingsFormProps
 
     return (
         <form action={formAction} className="brutal-stack">
-            <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
+            <div className="brutal-panel grid gap-8 bg-(--tm-paper-strong) p-6 md:p-8">
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
                 {state.success && state.message && <div className="brutal-alert-success text-sm">{state.message}</div>}
 
@@ -66,7 +66,7 @@ export default function SettingsForm({ preferences, profile }: SettingsFormProps
                                 <select
                                     name={field.name}
                                     defaultValue={field.checked ? "true" : "false"}
-                                    className="brutal-select max-w-[160px]"
+                                    className="brutal-select max-w-40"
                                     disabled={pending}
                                 >
                                     <option value="true">Aktif</option>
@@ -78,7 +78,7 @@ export default function SettingsForm({ preferences, profile }: SettingsFormProps
                 </div>
 
                 <div className="flex justify-end">
-                    <button type="submit" disabled={pending} className="brutal-button min-w-[220px]">
+                    <button type="submit" disabled={pending} className="brutal-button min-w-55">
                         {pending ? "Menyimpan..." : "Simpan pengaturan"}
                     </button>
                 </div>

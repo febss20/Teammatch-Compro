@@ -430,9 +430,11 @@ export async function recordCompetitionResult(
         }
 
         const supabase = await createServerSupabaseClient();
-        const { data: rawTeamRow, error: teamError } = await supabase
+        
+        // Validasi tim dan creator
+        const { data: teamRow, error: teamError } = await supabase
             .from("teams")
-            .select("id, creator_id, name, competition_name, team_members(profile_id, role_name)")
+            .select("id, creator_id, name, team_members(profile_id, role_name)")
             .eq("id", validationResult.data.team_id)
             .eq("creator_id", user.id)
             .single();
@@ -441,51 +443,32 @@ export async function recordCompetitionResult(
             throw new Error(`Gagal memuat tim: ${teamError.message}`);
         }
 
-        const teamRow = rawTeamRow as unknown as {
-            id: string;
-            creator_id: string;
-            name: string;
-            competition_name: string | null;
-            team_members: { profile_id: string; role_name: string }[] | null;
-        };
+        if (!teamRow) {
+            throw new Error("Tim tidak ditemukan atau Anda bukan creator tim ini.");
+        }
 
-        const { error: resultError } = await supabase.from("team_results").insert({
-            team_id: validationResult.data.team_id,
-            result_summary: validationResult.data.result_summary,
-            competition_ended_at: new Date(validationResult.data.competition_ended_at).toISOString(),
+        // Gunakan RPC untuk bypass RLS dan atomic operation
+        const { error: rpcError } = await supabase.rpc("record_team_competition_result" as any, {
+            p_team_id: validationResult.data.team_id,
+            p_result_summary: validationResult.data.result_summary,
+            p_competition_ended_at: new Date(validationResult.data.competition_ended_at).toISOString(),
+            p_creator_id: user.id,
         });
 
-        if (resultError) {
-            throw new Error(`Gagal menyimpan hasil tim: ${resultError.message}`);
+        if (rpcError) {
+            throw new Error(`Gagal mencatat hasil lomba: ${rpcError.message}`);
         }
 
-        const historyMembers = teamRow.team_members ?? [];
-        if (historyMembers.length > 0) {
-            const historyInsert = await supabase.from("competition_history").insert(
-                historyMembers.map((member) => ({
-                    profile_id: member.profile_id,
-                    competition_name: teamRow.competition_name ?? teamRow.name,
-                    role_name: member.role_name,
-                    best_result: validationResult.data.result_summary,
-                    team_id: teamRow.id,
-                })),
-            );
+        // Refresh profile summaries untuk semua anggota tim
+        const teamMembers = teamRow.team_members ?? [];
+        await Promise.all(teamMembers.map((member) => refreshProfileSummary(member.profile_id)));
 
-            if (historyInsert.error) {
-                throw new Error(`Hasil tim tersimpan tetapi portfolio anggota gagal dicatat: ${historyInsert.error.message}`);
-            }
-        }
-
-        await Promise.all(historyMembers.map((member) => refreshProfileSummary(member.profile_id)));
+        // Kirim notifikasi testimonial prompt
         await sendServerNotification({
             type: "testimonial_prompt",
             teamId: teamRow.id,
             teamName: teamRow.name,
             userId: user.id,
-        });
-        await insertTeamActivityEvent(teamRow.id, user.id, "competition_result_recorded", {
-            result_summary: validationResult.data.result_summary,
-            competition_ended_at: validationResult.data.competition_ended_at,
         });
 
         revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
@@ -494,7 +477,7 @@ export async function recordCompetitionResult(
         return {
             ...teamResultInitialState,
             success: true,
-            message: "Hasil lomba berhasil dicatat.",
+            message: "Hasil lomba berhasil dicatat untuk semua anggota tim.",
         };
     } catch (error) {
         return {
@@ -521,6 +504,8 @@ export async function submitTestimonial(
         }
 
         const supabase = await createServerSupabaseClient();
+        
+        // Validasi bahwa author adalah anggota tim
         const { data: teamMember, error: teamMemberError } = await supabase
             .from("team_members")
             .select("team_id, profile_id")
@@ -534,8 +519,25 @@ export async function submitTestimonial(
         if (!teamMember) {
             throw new Error("Anda bukan anggota tim ini.");
         }
+        
+        // Validasi tidak boleh menulis testimoni untuk diri sendiri
         if (validationResult.data.target_profile_id === user.id) {
             throw new Error("Anda tidak bisa menulis testimoni untuk diri sendiri.");
+        }
+
+        // Validasi bahwa target adalah anggota tim yang sama
+        const { data: targetMember, error: targetMemberError } = await supabase
+            .from("team_members")
+            .select("team_id, profile_id")
+            .eq("team_id", validationResult.data.team_id)
+            .eq("profile_id", validationResult.data.target_profile_id)
+            .maybeSingle();
+
+        if (targetMemberError) {
+            throw new Error(`Gagal memverifikasi target testimoni: ${targetMemberError.message}`);
+        }
+        if (!targetMember) {
+            throw new Error("Target testimoni bukan anggota tim yang sama.");
         }
 
         const now = new Date();

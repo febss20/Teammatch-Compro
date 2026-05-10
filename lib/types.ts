@@ -80,6 +80,12 @@ export interface ProfileRecord {
     availableMonths: DashboardMonth[];
     hoursPerWeek: number | null;
     completionScore: number;
+    // Tambahkan field untuk statistik dari profile_testimonial_summaries
+    averageRating: number;
+    testimonialCount: number;
+    bestResult: string | null;
+    competitionsCount: number;
+    summaryUpdatedAt: string | null;
 }
 
 export interface CandidateRecord {

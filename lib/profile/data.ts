@@ -37,17 +37,14 @@ export async function getTaxonomies(): Promise<{
     competitionTypes: CompetitionTypeRecord[];
 }> {
     const supabase = await createServerSupabaseClient();
+    
     const [skillsResult, competitionTypesResult] = await Promise.all([
-        supabase.from("skill_taxonomy").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
-        supabase
-            .from("competition_type_taxonomy")
-            .select("id, slug, label, recommended_skills")
-            .eq("is_active", true)
-            .order("sort_order"),
+        supabase.from("skill_taxonomy").select("*"),
+        supabase.from("competition_type_taxonomy").select("*"),
     ]);
 
     if (skillsResult.error) {
-        throw new Error(`Gagal memuat skill taxonomy: ${skillsResult.error.message}`);
+        throw new Error(`Gagal memuat taxonomy skill: ${skillsResult.error.message}`);
     }
 
     if (competitionTypesResult.error) {
@@ -69,6 +66,7 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         { data: availabilityRow, error: availabilityError },
         { data: customSkills, error: customSkillsError },
         { data: customCompetitions, error: customCompetitionsError },
+        { data: summaryRow, error: summaryError },
     ] = await Promise.all([
         supabase
             .from("profiles")
@@ -89,6 +87,11 @@ export async function getProfileRecord(profileId: string, email?: string | null)
             .maybeSingle(),
         supabase.from("profile_custom_skills").select("id, label").eq("profile_id", profileId),
         supabase.from("profile_custom_competition_type").select("id, label").eq("profile_id", profileId),
+        supabase
+            .from("profile_testimonial_summaries")
+            .select("average_rating, testimonial_count, best_result, competitions_count, updated_at")
+            .eq("profile_id", profileId)
+            .maybeSingle(),
     ]);
 
     if (profileError) {
@@ -117,6 +120,11 @@ export async function getProfileRecord(profileId: string, email?: string | null)
 
     if (customCompetitionsError) {
         throw new Error(`Gagal memuat jenis lomba custom: ${customCompetitionsError.message}`);
+    }
+
+    if (summaryError) {
+        // Jangan throw error, gunakan default values
+        console.warn(`Gagal memuat summary profil: ${summaryError.message}`);
     }
 
     const skillLinkRows = (skillLinks ?? []) as unknown as SkillLinkRow[];
@@ -169,6 +177,12 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         availableMonths: (availabilityRow?.available_months ?? []) as DashboardMonth[],
         hoursPerWeek: availabilityRow?.hours_per_week ?? null,
         completionScore: Math.round((completionScore / 7) * 100),
+        // Tambahkan data statistik dari profile_testimonial_summaries
+        averageRating: summaryRow?.average_rating ?? 0,
+        testimonialCount: summaryRow?.testimonial_count ?? 0,
+        bestResult: summaryRow?.best_result ?? null,
+        competitionsCount: summaryRow?.competitions_count ?? 0,
+        summaryUpdatedAt: summaryRow?.updated_at ?? null,
     });
 }
 
@@ -195,4 +209,28 @@ export async function getProfileNameMap(
             },
         ]),
     );
+}
+
+export async function getProfileTestimonials(profileId: string) {
+    const supabase = await createServerSupabaseClient();
+    
+    const { data: testimonials, error } = await supabase
+        .from("testimonials")
+        .select(`
+            id,
+            author:profiles!author_id(full_name, username),
+            target_profile_id,
+            rating,
+            body,
+            created_at,
+            team:teams!team_id(name)
+        `)
+        .eq("target_profile_id", profileId)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        throw new Error(`Gagal memuat testimoni: ${error.message}`);
+    }
+
+    return testimonials || [];
 }

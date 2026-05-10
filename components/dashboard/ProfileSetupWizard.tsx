@@ -55,14 +55,14 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
     return (
         <div className="brutal-stack">
-            <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
+            <div className="brutal-panel grid gap-8 bg-(--tm-paper-strong) p-6 md:p-8">
                 <div className="flex flex-wrap gap-3">
                     {[1, 2, 3].map((step) => (
                         <button
                             key={step}
                             type="button"
                             onClick={() => setCurrentStep(step)}
-                            className={`brutal-chip px-4 py-3 text-base ${currentStep === step ? "bg-[var(--tm-accent-2)]" : "bg-white"}`}
+                            className={`brutal-chip px-4 py-3 text-base ${currentStep === step ? "bg-(--tm-accent-2)" : "bg-white"}`}
                         >
                             Step {step}
                         </button>
@@ -74,7 +74,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                         <div className="space-y-3">
                             <div className="section-kicker w-fit">Identitas</div>
                             <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">SIAPKAN PROFIL DASAR</h2>
-                            <p className="text-base leading-8 text-[var(--tm-muted)]">
+                            <p className="text-base leading-8 text-(--tm-muted)">
                                 Gunakan identitas yang jelas agar kandidat atau creator lain langsung memahami konteks Anda.
                             </p>
                         </div>
@@ -94,7 +94,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "full_name") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepOneState.fieldErrors, "full_name")}
                                     </p>
                                 )}
@@ -111,7 +111,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "campus_name") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepOneState.fieldErrors, "campus_name")}
                                     </p>
                                 )}
@@ -128,7 +128,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "username") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepOneState.fieldErrors, "username")}
                                     </p>
                                 )}
@@ -146,7 +146,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "bio") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepOneState.fieldErrors, "bio")}
                                     </p>
                                 )}
@@ -154,7 +154,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                         </div>
 
                         <div className="flex justify-end">
-                            <button type="submit" disabled={stepOnePending} className="brutal-button min-w-[220px]">
+                            <button type="submit" disabled={stepOnePending} className="brutal-button min-w-55">
                                 {stepOnePending ? "Menyimpan..." : "Lanjut ke skill"}
                             </button>
                         </div>
@@ -174,7 +174,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             <div className="grid gap-3">
                                 <div className="flex items-center justify-between">
                                     <p className="brutal-label">Skill Utama Anda</p>
-                                    <span className="text-sm text-[var(--tm-muted)]">{totalSkills}/5</span>
+                                    <span className="text-sm text-(--tm-muted)">{totalSkills}/5</span>
                                 </div>
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {skills.map((skill) => (
@@ -188,7 +188,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                             />
                                             <span>
                                                 <span className="display-font block text-xl leading-none">{skill.label}</span>
-                                                <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
+                                                <span className="text-sm text-(--tm-muted)">{skill.category}</span>
                                             </span>
                                         </label>
                                     ))}
@@ -219,7 +219,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                 )}
 
                                 {firstError(stepTwoState.fieldErrors, "skills") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepTwoState.fieldErrors, "skills")}
                                     </p>
                                 )}
@@ -270,7 +270,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                 )}
 
                                 {firstError(stepTwoState.fieldErrors, "competition_types") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepTwoState.fieldErrors, "competition_types")}
                                     </p>
                                 )}
@@ -281,7 +281,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             <button type="button" onClick={() => setCurrentStep(1)} className="brutal-button-secondary">
                                 Kembali
                             </button>
-                            <button type="submit" disabled={stepTwoPending} className="brutal-button min-w-[220px]">
+                            <button type="submit" disabled={stepTwoPending} className="brutal-button min-w-55">
                                 {stepTwoPending ? "Menyimpan..." : "Lanjut ke availability"}
                             </button>
                         </div>
@@ -317,7 +317,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     ))}
                                 </div>
                                 {firstError(stepThreeState.fieldErrors, "available_months") && (
-                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    <p className="text-sm font-semibold text-(--tm-danger)">
                                         {firstError(stepThreeState.fieldErrors, "available_months")}
                                     </p>
                                 )}
@@ -371,7 +371,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             <button type="button" onClick={() => setCurrentStep(2)} className="brutal-button-secondary">
                                 Kembali
                             </button>
-                            <button type="submit" disabled={stepThreePending} className="brutal-button min-w-[220px]">
+                            <button type="submit" disabled={stepThreePending} className="brutal-button min-w-55">
                                 {stepThreePending ? "Menyelesaikan..." : "Selesaikan profil"}
                             </button>
                         </div>

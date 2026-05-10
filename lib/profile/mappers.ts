@@ -31,6 +31,12 @@ interface ProfileRecordInput {
     availableMonths?: DashboardMonth[];
     hoursPerWeek?: number | null;
     completionScore?: number;
+    // Tambahkan field untuk statistik dari profile_testimonial_summaries
+    averageRating?: number;
+    testimonialCount?: number;
+    bestResult?: string | null;
+    competitionsCount?: number;
+    summaryUpdatedAt?: string | null;
 }
 
 export function mapSkill(row: SkillRow): SkillOption {
@@ -69,5 +75,11 @@ export function mapProfileRecord(input: ProfileRecordInput): ProfileRecord {
         availableMonths: input.availableMonths ?? [],
         hoursPerWeek: input.hoursPerWeek ?? null,
         completionScore: input.completionScore ?? 0,
+        // Tambahkan field statistik
+        averageRating: input.averageRating ?? 0,
+        testimonialCount: input.testimonialCount ?? 0,
+        bestResult: input.bestResult ?? null,
+        competitionsCount: input.competitionsCount ?? 0,
+        summaryUpdatedAt: input.summaryUpdatedAt ?? null,
     };
 }

@@ -186,15 +186,26 @@ export async function refreshProfileSummary(profileId: string): Promise<void> {
         supabase.from("testimonials").select("rating").eq("target_profile_id", profileId),
     ]);
 
-    if (historyError || historyBestError || testimonialError) {
-        return;
+    if (historyError) {
+        console.error(`Failed to fetch competition history count for profile ${profileId}:`, historyError.message);
+        throw new Error(`Gagal menghitung riwayat kompetisi: ${historyError.message}`);
+    }
+
+    if (historyBestError) {
+        console.error(`Failed to fetch best result for profile ${profileId}:`, historyBestError.message);
+        throw new Error(`Gagal mengambil hasil terbaik: ${historyBestError.message}`);
+    }
+
+    if (testimonialError) {
+        console.error(`Failed to fetch testimonials for profile ${profileId}:`, testimonialError.message);
+        throw new Error(`Gagal mengambil testimoni: ${testimonialError.message}`);
     }
 
     const ratings = (testimonialRows ?? []).map((row) => row.rating);
     const averageRating =
         ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(2)) : 0;
 
-    await supabase.from("profile_testimonial_summaries").upsert({
+    const { error: upsertError } = await supabase.from("profile_testimonial_summaries").upsert({
         profile_id: profileId,
         average_rating: averageRating,
         testimonial_count: ratings.length,
@@ -202,4 +213,9 @@ export async function refreshProfileSummary(profileId: string): Promise<void> {
         competitions_count: historyCount ?? 0,
         updated_at: new Date().toISOString(),
     });
+
+    if (upsertError) {
+        console.error(`Failed to upsert profile summary for profile ${profileId}:`, upsertError.message);
+        throw new Error(`Gagal memperbarui ringkasan profil: ${upsertError.message}`);
+    }
 }

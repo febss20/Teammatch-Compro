@@ -21,15 +21,15 @@ export default async function RegisterPage() {
             <div className="page-frame grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
                 <section className="grid gap-6">
                     <div className="section-kicker w-fit">Buat akun</div>
-                    <div className="brutal-panel bg-[var(--tm-accent)] p-6 md:p-8">
-                        <p className="display-font text-[clamp(4.2rem,10vw,7.4rem)] leading-[0.88] text-[var(--tm-line)]">
+                    <div className="brutal-panel bg-(--tm-accent) p-6 md:p-8">
+                        <p className="display-font text-[clamp(4.2rem,10vw,7.4rem)] leading-[0.88] text-(--tm-line)">
                             MULAI
                             <br />
                             DARI
                             <br />
                             AKUNMU
                         </p>
-                        <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--tm-line)]">
+                        <p className="mt-5 max-w-2xl text-lg leading-8 text-(--tm-line)">
                             Buat akun untuk menyimpan ide lomba, mengatur kebutuhan tim, dan mengelolanya dari dashboard
                             pribadi.
                         </p>
@@ -43,17 +43,17 @@ export default async function RegisterPage() {
                         ].map((item) => (
                             <div key={item} className="brutal-panel p-5">
                                 <p className="display-font text-2xl leading-none">Ringkasnya</p>
-                                <p className="mt-3 text-sm leading-7 text-[var(--tm-muted)]">{item}</p>
+                                <p className="mt-3 text-sm leading-7 text-(--tm-muted)">{item}</p>
                             </div>
                         ))}
                     </div>
                 </section>
 
                 <section className="brutal-stack">
-                    <div className="brutal-panel h-full bg-[var(--tm-paper-strong)] p-6 md:p-8">
+                    <div className="brutal-panel h-full bg-(--tm-paper-strong) p-6 md:p-8">
                         <div className="mb-8 space-y-3">
                             <p className="display-font text-3xl leading-none">Buat akun baru</p>
-                            <p className="text-base leading-7 text-[var(--tm-muted)]">
+                            <p className="text-base leading-7 text-(--tm-muted)">
                                 Setelah pendaftaran berhasil, TeamMatch akan mencoba langsung masuk ke akun Anda dan mengarahkan
                                 ke dashboard.
                             </p>
@@ -61,9 +61,9 @@ export default async function RegisterPage() {
 
                         <AuthRegisterForm />
 
-                        <div className="mt-8 border-t-[3px] border-dashed border-[var(--tm-line)] pt-6 text-sm text-[var(--tm-muted)]">
+                        <div className="mt-8 border-t-[3px] border-dashed border-(--tm-line) pt-6 text-sm text-(--tm-muted)">
                             Sudah punya akun?{" "}
-                            <Link href="/login" className="display-font text-2xl leading-none text-[var(--tm-line)]">
+                            <Link href="/login" className="display-font text-2xl leading-none text-(--tm-line)">
                                 Masuk sekarang
                             </Link>
                         </div>
