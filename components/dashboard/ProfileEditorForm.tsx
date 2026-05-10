@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateProfile } from "@/app/(dashboard)/dashboard/actions";
 import { profileInitialState } from "@/lib/forms";
 import { dashboardMonthLabels } from "@/lib/platform";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
+import { ChipInput } from "@/components/dashboard/ChipInput";
 import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface ProfileEditorFormProps {
@@ -15,9 +16,32 @@ interface ProfileEditorFormProps {
 
 export default function ProfileEditorForm({ competitionTypes, profile, skills }: ProfileEditorFormProps) {
     const [state, formAction, pending] = useActionState(updateProfile, profileInitialState);
-    const selectedSkillIds = new Set(profile.skills.map((skill) => skill.id));
-    const selectedCompetitionTypeIds = new Set(profile.competitionTypes.map((competitionType) => competitionType.id));
+
+    const customSkills = profile.skills.filter((skill) => skill.slug.startsWith("custom-"));
+    const customCompetitions = profile.competitionTypes.filter((comp) => comp.slug.startsWith("custom-"));
+
+    const savedTaxonomySkillIds = new Set(
+        profile.skills
+            .filter((skill) => !skill.slug.startsWith("custom-"))
+            .map((skill) => skill.id)
+    );
+    const savedTaxonomyCompetitionIds = new Set(
+        profile.competitionTypes
+            .filter((comp) => !comp.slug.startsWith("custom-"))
+            .map((comp) => comp.id)
+    );
     const selectedMonths = new Set(profile.availableMonths);
+
+    const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
+    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] = useState<Set<string>>(savedTaxonomyCompetitionIds);
+
+    const [showCustomSkills, setShowCustomSkills] = useState(customSkills.length > 0);
+    const [showCustomCompetitions, setShowCustomCompetitions] = useState(customCompetitions.length > 0);
+    const [customSkillsCount, setCustomSkillsCount] = useState(customSkills.length);
+    const [customCompetitionsCount, setCustomCompetitionsCount] = useState(customCompetitions.length);
+
+    const totalSkills = selectedTaxonomySkillIds.size + customSkillsCount;
+    const totalCompetitions = selectedTaxonomyCompetitionIds.size + customCompetitionsCount;
 
     return (
         <form action={formAction} className="brutal-stack">
@@ -84,42 +108,134 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
 
                 <div className="grid gap-4">
                     <div className="section-kicker w-fit">Skill & minat</div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                        {skills.map((skill) => (
-                            <label key={skill.id} className="brutal-panel-soft flex items-center gap-3 p-4">
-                                <input
-                                    type="checkbox"
-                                    name="skills"
-                                    value={skill.id}
-                                    defaultChecked={selectedSkillIds.has(skill.id)}
-                                    disabled={pending}
-                                />
-                                <span>
-                                    <span className="display-font block text-xl leading-none">{skill.label}</span>
-                                    <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                    {getFirstFieldError(state.fieldErrors, "skills") && (
-                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
-                            {getFirstFieldError(state.fieldErrors, "skills")}
-                        </p>
-                    )}
+                    <div className="grid gap-3">
+                        <div className="flex items-center justify-between">
+                            <p className="brutal-label">Skill Utama</p>
+                            <span className="text-sm text-[var(--tm-muted)]">{totalSkills}/5</span>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {skills
+                                .filter((skill) => skill.label.toLowerCase() !== "lainnya")
+                                .map((skill) => (
+                                    <label key={skill.id} className="brutal-panel-soft flex items-center gap-3 p-4">
+                                        <input
+                                            type="checkbox"
+                                            name="skills"
+                                            value={skill.id}
+                                            defaultChecked={savedTaxonomySkillIds.has(skill.id)}
+                                            onChange={(e) => {
+                                                const newSet = new Set(selectedTaxonomySkillIds);
+                                                if (e.target.checked) {
+                                                    newSet.add(skill.id);
+                                                } else {
+                                                    newSet.delete(skill.id);
+                                                }
+                                                setSelectedTaxonomySkillIds(newSet);
+                                            }}
+                                            disabled={pending}
+                                        />
+                                        <span>
+                                            <span className="display-font block text-xl leading-none">{skill.label}</span>
+                                            <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
+                                        </span>
+                                    </label>
+                                ))}
+                        </div>
 
-                    <div className="grid gap-3 md:grid-cols-2">
-                        {competitionTypes.map((competitionType) => (
-                            <label key={competitionType.id} className="brutal-panel-soft flex items-center gap-3 p-4">
-                                <input
-                                    type="checkbox"
-                                    name="competition_types"
-                                    value={competitionType.id}
-                                    defaultChecked={selectedCompetitionTypeIds.has(competitionType.id)}
-                                    disabled={pending}
-                                />
-                                <span className="display-font text-xl leading-none">{competitionType.label}</span>
-                            </label>
-                        ))}
+                        <label className="brutal-panel-soft flex items-center gap-3 p-4">
+                            <input
+                                type="checkbox"
+                                checked={showCustomSkills}
+                                onChange={(e) => setShowCustomSkills(e.target.checked)}
+                                disabled={pending}
+                            />
+                            <span className="display-font text-xl leading-none">Lainnya</span>
+                        </label>
+
+                        {showCustomSkills && (
+                            <ChipInput
+                                name="custom_skills"
+                                label="Skill Custom"
+                                placeholder="Ketik skill lainnya, tekan Enter..."
+                                maxItems={5}
+                                currentCount={selectedTaxonomySkillIds.size}
+                                disabled={pending}
+                                defaultItems={customSkills.map((s) => s.label)}
+                                onItemsChange={(items) => setCustomSkillsCount(items.length)}
+                                helperText="Masukkan skill yang tidak ada di daftar pilihan."
+                            />
+                        )}
+
+                        {getFirstFieldError(state.fieldErrors, "skills") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFirstFieldError(state.fieldErrors, "skills")}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-3">
+                        <div className="flex items-center justify-between">
+                            <p className="brutal-label">Jenis Lomba Diminati</p>
+                            <span className="text-sm text-[var(--tm-muted)]">{totalCompetitions}/5</span>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {competitionTypes
+                                .filter((ct) => ct.label.toLowerCase() !== "lainnya")
+                                .map((competitionType) => (
+                                    <label
+                                        key={competitionType.id}
+                                        className="brutal-panel-soft flex items-center gap-3 p-4"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            name="competition_types"
+                                            value={competitionType.id}
+                                            defaultChecked={savedTaxonomyCompetitionIds.has(competitionType.id)}
+                                            disabled={pending}
+                                            onChange={(e) => {
+                                                const newSet = new Set(selectedTaxonomyCompetitionIds);
+                                                if (e.target.checked) {
+                                                    newSet.add(competitionType.id);
+                                                } else {
+                                                    newSet.delete(competitionType.id);
+                                                }
+                                                setSelectedTaxonomyCompetitionIds(newSet);
+                                            }}
+                                        />
+                                        <span className="display-font text-xl leading-none">{competitionType.label}</span>
+                                    </label>
+                                ))}
+                        </div>
+
+                        <label className="brutal-panel-soft flex items-center gap-3 p-4">
+                            <input
+                                type="checkbox"
+                                checked={showCustomCompetitions}
+                                onChange={(e) => setShowCustomCompetitions(e.target.checked)}
+                                disabled={pending}
+                            />
+                            <span className="display-font text-xl leading-none">Lainnya</span>
+                        </label>
+
+                        {showCustomCompetitions && (
+                            <ChipInput
+                                name="custom_competition_types"
+                                label="Jenis Lomba Custom"
+                                placeholder="Ketik jenis lomba lainnya, tekan Enter..."
+                                maxItems={5}
+                                currentCount={selectedTaxonomyCompetitionIds.size}
+                                disabled={pending}
+                                defaultItems={customCompetitions.map((c) => c.label)}
+                                onItemsChange={(items) => setCustomCompetitionsCount(items.length)}
+                                helperText="Masukkan jenis lomba yang tidak ada di daftar pilihan."
+                            />
+                        )}
+
+                        {getFirstFieldError(state.fieldErrors, "competition_types") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {getFirstFieldError(state.fieldErrors, "competition_types")}
+                            </p>
+                        )}
                     </div>
                 </div>
 

@@ -288,14 +288,29 @@ export async function applyToBoard(
         }
 
         const supabase = await createServerSupabaseClient();
-        const { data: boardData, error: boardError } = await supabase
-            .from("competition_idea_boards")
-            .select("id, user_id, required_skills")
-            .eq("id", validationResult.data.board_id)
-            .maybeSingle();
+        const [boardQueryResult, slotQueryResult] = await Promise.all([
+            supabase
+                .from("competition_idea_boards")
+                .select("id, user_id, required_skills")
+                .eq("id", validationResult.data.board_id)
+                .maybeSingle(),
+            validationResult.data.board_slot_id
+                ? supabase
+                      .from("board_slots")
+                      .select("required_skills")
+                      .eq("id", validationResult.data.board_slot_id)
+                      .maybeSingle()
+                : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const { data: boardData, error: boardError } = boardQueryResult;
+        const { data: slotData, error: slotError } = slotQueryResult;
 
         if (boardError) {
             throw new Error(`Gagal memeriksa board tujuan: ${boardError.message}`);
+        }
+        if (slotError) {
+            throw new Error(`Gagal memeriksa role board: ${slotError.message}`);
         }
         if (!boardData) {
             throw new Error("Board tidak ditemukan.");
@@ -330,13 +345,17 @@ export async function applyToBoard(
                   })()
                 : new Set<string>();
 
-        const skillMatchCount = boardData.required_skills.filter((skill) =>
+        const slotRequiredSkills = slotData?.required_skills ?? [];
+        const requiredSkillsForMatching =
+            slotRequiredSkills.length > 0 ? slotRequiredSkills : boardData.required_skills ?? [];
+
+        const skillMatchCount = requiredSkillsForMatching.filter((skill) =>
             applicantSkillLabels.has(skill.toLowerCase()),
         ).length;
         const skillMatchScore =
-            boardData.required_skills.length === 0
+            requiredSkillsForMatching.length === 0
                 ? 0
-                : Math.min(100, Math.round((skillMatchCount / boardData.required_skills.length) * 100));
+                : Math.min(100, Math.round((skillMatchCount / requiredSkillsForMatching.length) * 100));
 
         const { data, error } = await supabase
             .from("board_applications")

@@ -72,6 +72,15 @@ export default async function BoardDetailPage({ params }: { params: Promise<{ id
                                     <p className="mt-2 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
                                         {slot.slotCount} slot tersedia
                                     </p>
+                                    {slot.requiredSkills && slot.requiredSkills.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {slot.requiredSkills.map((skill) => (
+                                                <span key={skill} className="brutal-chip bg-white text-sm">
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

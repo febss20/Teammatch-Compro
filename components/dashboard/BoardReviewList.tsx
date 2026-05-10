@@ -8,6 +8,7 @@ import type { BoardApplicationRecord, CandidateRecord } from "@/lib/types";
 interface BoardReviewListProps {
     applications: BoardApplicationRecord[];
     boardRequiredSkills: string[];
+    slotSkillsMap?: Map<string, string[]>;
     candidatesById: Map<string, CandidateRecord>;
 }
 
@@ -17,7 +18,7 @@ function normalizeSkillLabel(value: string): string {
     return value.trim().toLowerCase();
 }
 
-export default function BoardReviewList({ applications, boardRequiredSkills, candidatesById }: BoardReviewListProps) {
+export default function BoardReviewList({ applications, boardRequiredSkills, slotSkillsMap, candidatesById }: BoardReviewListProps) {
     const [queueFilter, setQueueFilter] = useState<ReviewQueueFilter>("all");
 
     const filteredApplications = useMemo(() => {
@@ -58,8 +59,13 @@ export default function BoardReviewList({ applications, boardRequiredSkills, can
                 const candidateSkillSet = new Set(
                     (candidate?.profile.skills ?? []).map((skill) => normalizeSkillLabel(skill.label)),
                 );
-                const matchedSkills = boardRequiredSkills.filter((skill) => candidateSkillSet.has(normalizeSkillLabel(skill)));
-                const missingSkills = boardRequiredSkills.filter((skill) => !candidateSkillSet.has(normalizeSkillLabel(skill)));
+
+                const relevantSkills = application.boardSlotId && slotSkillsMap?.has(application.boardSlotId)
+                    ? slotSkillsMap.get(application.boardSlotId)!
+                    : boardRequiredSkills;
+
+                const matchedSkills = relevantSkills.filter((skill) => candidateSkillSet.has(normalizeSkillLabel(skill)));
+                const missingSkills = relevantSkills.filter((skill) => !candidateSkillSet.has(normalizeSkillLabel(skill)));
 
                 return (
                     <article key={application.id} className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-6">
@@ -87,6 +93,15 @@ export default function BoardReviewList({ applications, boardRequiredSkills, can
                             </h3>
                             <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">{application.message}</p>
                         </div>
+
+                        {application.selectedRole && (
+                            <div className="brutal-panel-soft p-4">
+                                <p className="display-font text-xl">Role yang Dilamar</p>
+                                <p className="mt-2 text-sm text-[var(--tm-muted)]">
+                                    {application.selectedRole}
+                                </p>
+                            </div>
+                        )}
 
                         {candidate && (
                             <>
