@@ -80,6 +80,20 @@ export interface ProfileRecord {
     availableMonths: DashboardMonth[];
     hoursPerWeek: number | null;
     completionScore: number;
+    competitionsCount: number;
+    bestResult: string | null;
+    testimonialCount: number;
+    testimonialAverage: number;
+    competitionHistory: ProfileCompetitionHistoryItem[];
+}
+
+export interface ProfileCompetitionHistoryItem {
+    id: string;
+    competitionName: string;
+    roleName: string;
+    bestResult: string | null;
+    recordedAt: string;
+    teamId: string | null;
 }
 
 export interface CandidateRecord {
@@ -241,6 +255,15 @@ export interface TestimonialRecord {
     lockedAt: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface CandidateTestimonialItem {
+    id: string;
+    authorId: string;
+    authorName: string | null;
+    rating: number;
+    body: string;
+    createdAt: string;
 }
 
 export type CompetitionIdeaBoardFieldName =

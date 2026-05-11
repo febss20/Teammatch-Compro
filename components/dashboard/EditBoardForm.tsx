@@ -15,6 +15,7 @@ interface RoleSlotInput {
     id: string;
     roleName: string;
     slotCount: string;
+    requiredSkills: string;
 }
 
 const statusLabels: Record<(typeof competitionIdeaBoardStatusOptions)[number], string> = {
@@ -50,6 +51,7 @@ function createInitialSlots(board: CompetitionIdeaBoardRecord): RoleSlotInput[] 
             id: crypto.randomUUID(),
             roleName: slot.roleName,
             slotCount: String(slot.slotCount),
+            requiredSkills: getSkillsValue(slot.requiredSkills),
         }));
     }
 
@@ -58,6 +60,7 @@ function createInitialSlots(board: CompetitionIdeaBoardRecord): RoleSlotInput[] 
             id: crypto.randomUUID(),
             roleName: "Frontend Engineer",
             slotCount: "1",
+            requiredSkills: "",
         },
     ];
 }
@@ -67,6 +70,10 @@ function serializeSlots(slots: RoleSlotInput[]): string {
         slots.map((slot) => ({
             roleName: slot.roleName,
             slotCount: Number(slot.slotCount),
+            requiredSkills: slot.requiredSkills
+                .split(",")
+                .map((skill) => skill.trim())
+                .filter((skill) => skill.length > 0),
         })),
     );
 }
@@ -74,7 +81,7 @@ function serializeSlots(slots: RoleSlotInput[]): string {
 function updateSlotValue(
     slots: RoleSlotInput[],
     slotId: string,
-    key: "roleName" | "slotCount",
+    key: "roleName" | "slotCount" | "requiredSkills",
     value: string,
 ): RoleSlotInput[] {
     return slots.map((slot) => (slot.id === slotId ? { ...slot, [key]: value } : slot));
@@ -266,6 +273,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                             id: crypto.randomUUID(),
                                             roleName: "",
                                             slotCount: "1",
+                                            requiredSkills: "",
                                         },
                                     ])
                                 }
@@ -324,6 +332,24 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                         Hapus
                                     </button>
                                 </div>
+
+                                <div className="col-span-full grid gap-2">
+                                    <label htmlFor={`slot-skills-${slot.id}`} className="brutal-label">
+                                        Skill yang Dibutuhkan untuk {slot.roleName || `Peran ${index + 1}`}
+                                    </label>
+                                    <input
+                                        id={`slot-skills-${slot.id}`}
+                                        className="brutal-input"
+                                        value={slot.requiredSkills}
+                                        placeholder="React, TypeScript, UI Design"
+                                        disabled={pending}
+                                        onChange={(event) =>
+                                            setSlots((current) =>
+                                                updateSlotValue(current, slot.id, "requiredSkills", event.target.value),
+                                            )
+                                        }
+                                    />
+                                </div>
                             </div>
                         ))}
 
@@ -344,6 +370,22 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                 <p className="mt-2 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
                                     {slot.slotCount || "1"} slot
                                 </p>
+                                {slot.requiredSkills && (
+                                    <div className="mt-3 flex flex-wrap gap-1">
+                                        {slot.requiredSkills
+                                            .split(",")
+                                            .map((skill) => skill.trim())
+                                            .filter((skill) => skill.length > 0)
+                                            .map((skill) => (
+                                                <span
+                                                    key={`${slot.id}-${skill}`}
+                                                    className="text-xs rounded bg-white px-2 py-1 text-[var(--tm-line)]"
+                                                >
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

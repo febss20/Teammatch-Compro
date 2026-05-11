@@ -297,7 +297,7 @@ export async function applyToBoard(
             validationResult.data.board_slot_id
                 ? supabase
                       .from("board_slots")
-                      .select("required_skills")
+                      .select("id, board_id, role_name, required_skills")
                       .eq("id", validationResult.data.board_slot_id)
                       .maybeSingle()
                 : Promise.resolve({ data: null, error: null }),
@@ -317,6 +317,12 @@ export async function applyToBoard(
         }
         if (boardData.user_id === user.id) {
             throw new Error("Anda tidak bisa melamar ke board milik sendiri.");
+        }
+        if (validationResult.data.board_slot_id && !slotData) {
+            throw new Error("Role board yang dipilih tidak ditemukan.");
+        }
+        if (slotData && slotData.board_id !== validationResult.data.board_id) {
+            throw new Error("Role board yang dipilih tidak sesuai dengan board tujuan.");
         }
 
         const { data: applicantSkillLinks, error: applicantSkillLinksError } = await supabase
@@ -347,7 +353,7 @@ export async function applyToBoard(
 
         const slotRequiredSkills = slotData?.required_skills ?? [];
         const requiredSkillsForMatching =
-            slotRequiredSkills.length > 0 ? slotRequiredSkills : boardData.required_skills ?? [];
+            slotRequiredSkills.length > 0 ? slotRequiredSkills : (boardData.required_skills ?? []);
 
         const skillMatchCount = requiredSkillsForMatching.filter((skill) =>
             applicantSkillLabels.has(skill.toLowerCase()),

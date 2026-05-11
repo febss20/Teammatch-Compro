@@ -21,19 +21,16 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
     const customCompetitions = profile.competitionTypes.filter((comp) => comp.slug.startsWith("custom-"));
 
     const savedTaxonomySkillIds = new Set(
-        profile.skills
-            .filter((skill) => !skill.slug.startsWith("custom-"))
-            .map((skill) => skill.id)
+        profile.skills.filter((skill) => !skill.slug.startsWith("custom-")).map((skill) => skill.id),
     );
     const savedTaxonomyCompetitionIds = new Set(
-        profile.competitionTypes
-            .filter((comp) => !comp.slug.startsWith("custom-"))
-            .map((comp) => comp.id)
+        profile.competitionTypes.filter((comp) => !comp.slug.startsWith("custom-")).map((comp) => comp.id),
     );
     const selectedMonths = new Set(profile.availableMonths);
 
     const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
-    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] = useState<Set<string>>(savedTaxonomyCompetitionIds);
+    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] =
+        useState<Set<string>>(savedTaxonomyCompetitionIds);
 
     const [showCustomSkills, setShowCustomSkills] = useState(customSkills.length > 0);
     const [showCustomCompetitions, setShowCustomCompetitions] = useState(customCompetitions.length > 0);
@@ -182,10 +179,7 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
                             {competitionTypes
                                 .filter((ct) => ct.label.toLowerCase() !== "lainnya")
                                 .map((competitionType) => (
-                                    <label
-                                        key={competitionType.id}
-                                        className="brutal-panel-soft flex items-center gap-3 p-4"
-                                    >
+                                    <label key={competitionType.id} className="brutal-panel-soft flex items-center gap-3 p-4">
                                         <input
                                             type="checkbox"
                                             name="competition_types"

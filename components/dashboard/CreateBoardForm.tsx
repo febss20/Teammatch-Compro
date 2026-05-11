@@ -194,11 +194,6 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
         [composerState.requiredSkills],
     );
 
-    const suggestedSkills = useMemo(
-        () => createSuggestedSkills(competitionTypes, composerState.selectedCompetitionType, composerState.requiredSkills),
-        [competitionTypes, composerState.requiredSkills, composerState.selectedCompetitionType],
-    );
-
     useEffect(() => {
         const nextSnapshot = JSON.stringify(composerState);
         if (nextSnapshot === lastAutosavedSnapshotRef.current) {

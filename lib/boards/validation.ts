@@ -25,10 +25,7 @@ const descriptionSchema = z
     .min(30, "Deskripsi ide minimal 30 karakter.")
     .max(2000, "Deskripsi ide maksimal 2000 karakter.");
 const deadlineSchema = z.iso.date("Deadline lomba tidak valid.");
-const requiredSkillsInputSchema = z
-    .string()
-    .trim()
-    .max(500, "Daftar skill terlalu panjang.");
+const requiredSkillsInputSchema = z.string().trim().max(500, "Daftar skill terlalu panjang.");
 const competitionTypeOtherSchema = z.preprocess(
     (value: unknown) => (typeof value === "string" ? value : ""),
     z.string().trim().max(50, "Jenis lomba lainnya maksimal 50 karakter."),
@@ -271,7 +268,9 @@ export function updateCompetitionIdeaBoardPayload(
     };
 }
 
-export function parseBoardSlotsJsonValue(slotsJson: string): { roleName: string; slotCount: number; requiredSkills?: string[] }[] {
+export function parseBoardSlotsJsonValue(
+    slotsJson: string,
+): { roleName: string; slotCount: number; requiredSkills?: string[] }[] {
     let parsedValue: unknown;
 
     try {

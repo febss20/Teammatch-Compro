@@ -1,6 +1,6 @@
-# TeamMatch — Cari Teman Lomba Kampus 🏆
+# TeamMatch
 
-Platform kolaborasi mahasiswa untuk menemukan rekan tim dan memenangkan berbagai kompetisi tingkat nasional maupun internasional.
+Platform dashboard untuk mencari rekan tim lomba kampus berbasis profile, board ide, aplikasi pelamar, team formation, dan trust snapshot.
 
 ## Tech Stack
 
@@ -11,9 +11,9 @@ Platform kolaborasi mahasiswa untuk menemukan rekan tim dan memenangkan berbagai
 - **API:** Unsplash API (public photo fetching)
 - **Linting:** ESLint + Prettier
 
-## Getting Started
+## Setup Singkat
 
-### 1. Clone & Install
+1. Install dependency
 
 ```bash
 git clone https://github.com/febss20/Teammatch-Compro.git
@@ -21,36 +21,48 @@ cd Teammatch-Compro
 npm install
 ```
 
-### 2. Environment Variables
+2. Isi `.env.local`
 
-Buat file `.env.local` di root project:
+Minimal env yang dipakai project ini:
 
 ```bash
-UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
+UNSPLASH_ACCESS_KEY=
 ```
 
 > Dapatkan Unsplash Access Key gratis di [unsplash.com/developers](https://unsplash.com/developers).
 
-### 3. Run Development Server
+3. Jalankan semua migration Supabase
+
+Pastikan migration sudah ter-apply, terutama yang terkait:
+
+- foundation dashboard dan RLS
+- team acceptance / cleanup
+
+4. Jalankan app
 
 ```bash
 npm run dev
 ```
 
-Buka [http://localhost:3000](http://localhost:3000) di browser.
+## Area Utama
 
-## Key Features
+- `/dashboard/profile/setup` untuk onboarding profile
+- `/dashboard/find-team` untuk discovery kandidat
+- `/dashboard/boards` untuk board ide lomba
+- `/dashboard/requests` untuk request flow
+- `/dashboard/teams` untuk team workspace
+- `/dashboard/settings` untuk privacy dan notification preference
 
-| Feature | Implementation |
-|---------|---------------|
-| App Router | `app/` directory with layouts, pages, dynamic routes |
-| Server Component | Services page fetches from Unsplash API |
-| Client Component | Navbar (mobile toggle), ContactForm (form state) |
-| Data Fetching | `await fetch()` in Server Component + ISR (1 hour) |
-| Route Handler | `GET /api/photos`, `POST /api/contact` |
-| Dynamic Route | `/services/[id]` with `generateStaticParams` |
-| Image Optimization | `next/image` with Unsplash `remotePatterns` |
+## Validasi
+
+```bash
+npm run lint
+cmd /c npx tsc --noEmit
+```
 
 ## Scripts
 

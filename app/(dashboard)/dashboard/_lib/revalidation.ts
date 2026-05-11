@@ -27,9 +27,17 @@ export function revalidateBoardPaths(input: BoardPathInput): void {
     }
 }
 
-export function revalidateMatchingPaths(): void {
+interface MatchingPathInput {
+    candidateIds?: string[];
+}
+
+export function revalidateMatchingPaths(input?: MatchingPathInput): void {
     revalidatePath("/dashboard/find-team");
     revalidatePath("/dashboard/requests");
+
+    for (const candidateId of input?.candidateIds ?? []) {
+        revalidatePath(`/dashboard/find-team/${candidateId}`);
+    }
 }
 
 export function revalidateTeamPaths(input: TeamPathInput): void {

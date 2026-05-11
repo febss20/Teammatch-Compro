@@ -26,8 +26,12 @@ import type {
     TeamResultFieldName,
     TestimonialFieldName,
 } from "@/lib/types";
-import { refreshProfileSummary } from "@/app/(dashboard)/dashboard/_lib/profile-writes";
-import { revalidateMatchingPaths, revalidateTeamPaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
+import { refreshProfileSummaries } from "@/app/(dashboard)/dashboard/_lib/profile-writes";
+import {
+    revalidateMatchingPaths,
+    revalidateProfilePaths,
+    revalidateTeamPaths,
+} from "@/app/(dashboard)/dashboard/_lib/revalidation";
 import { insertTeamActivityEvent } from "@/app/(dashboard)/dashboard/_lib/team-writes";
 
 export async function confirmTeamCommitment(
@@ -432,7 +436,7 @@ export async function recordCompetitionResult(
         const supabase = await createServerSupabaseClient();
         const { data: rawTeamRow, error: teamError } = await supabase
             .from("teams")
-            .select("id, creator_id, name, competition_name, team_members(profile_id, role_name)")
+            .select("id, creator_id, name, competition_name")
             .eq("id", validationResult.data.team_id)
             .eq("creator_id", user.id)
             .single();
@@ -446,37 +450,42 @@ export async function recordCompetitionResult(
             creator_id: string;
             name: string;
             competition_name: string | null;
-            team_members: { profile_id: string; role_name: string }[] | null;
         };
 
-        const { error: resultError } = await supabase.from("team_results").insert({
-            team_id: validationResult.data.team_id,
-            result_summary: validationResult.data.result_summary,
-            competition_ended_at: new Date(validationResult.data.competition_ended_at).toISOString(),
+        const { data: rpcRows, error: rpcError } = await supabase.rpc("record_team_result_and_history", {
+            p_team_id: validationResult.data.team_id,
+            p_competition_name: teamRow.competition_name ?? teamRow.name,
+            p_result_summary: validationResult.data.result_summary,
+            p_best_result: validationResult.data.result_summary,
+            p_competition_ended_at: new Date(validationResult.data.competition_ended_at).toISOString(),
+            p_actor_user_id: user.id,
         });
 
-        if (resultError) {
-            throw new Error(`Gagal menyimpan hasil tim: ${resultError.message}`);
+        if (rpcError) {
+            throw new Error(`Gagal menyimpan hasil tim: ${rpcError.message}`);
         }
 
-        const historyMembers = teamRow.team_members ?? [];
-        if (historyMembers.length > 0) {
-            const historyInsert = await supabase.from("competition_history").insert(
-                historyMembers.map((member) => ({
-                    profile_id: member.profile_id,
-                    competition_name: teamRow.competition_name ?? teamRow.name,
-                    role_name: member.role_name,
-                    best_result: validationResult.data.result_summary,
-                    team_id: teamRow.id,
-                })),
-            );
-
-            if (historyInsert.error) {
-                throw new Error(`Hasil tim tersimpan tetapi portfolio anggota gagal dicatat: ${historyInsert.error.message}`);
-            }
+        const rpcResult = rpcRows?.[0];
+        if (!rpcResult) {
+            throw new Error("Hasil tim gagal dicatat karena respons sinkronisasi database tidak lengkap.");
         }
 
-        await Promise.all(historyMembers.map((member) => refreshProfileSummary(member.profile_id)));
+        const affectedProfileIds = rpcResult.affected_profile_ids ?? [];
+        try {
+            await refreshProfileSummaries(affectedProfileIds);
+        } catch (error) {
+            revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
+            revalidateMatchingPaths({ candidateIds: affectedProfileIds });
+            revalidateProfilePaths();
+            return {
+                ...teamResultInitialState,
+                formError:
+                    error instanceof Error
+                        ? `Hasil lomba tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
+                        : "Hasil lomba tersimpan, tetapi snapshot trust belum tersinkron.",
+            };
+        }
+
         await sendServerNotification({
             type: "testimonial_prompt",
             teamId: teamRow.id,
@@ -489,7 +498,8 @@ export async function recordCompetitionResult(
         });
 
         revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
-        revalidateMatchingPaths();
+        revalidateMatchingPaths({ candidateIds: affectedProfileIds });
+        revalidateProfilePaths();
 
         return {
             ...teamResultInitialState,
@@ -537,6 +547,19 @@ export async function submitTestimonial(
         if (validationResult.data.target_profile_id === user.id) {
             throw new Error("Anda tidak bisa menulis testimoni untuk diri sendiri.");
         }
+        const { data: targetMember, error: targetMemberError } = await supabase
+            .from("team_members")
+            .select("team_id, profile_id")
+            .eq("team_id", validationResult.data.team_id)
+            .eq("profile_id", validationResult.data.target_profile_id)
+            .maybeSingle();
+
+        if (targetMemberError) {
+            throw new Error(`Gagal memverifikasi target testimonial: ${targetMemberError.message}`);
+        }
+        if (!targetMember) {
+            throw new Error("Target testimonial tidak valid karena bukan anggota tim yang sama.");
+        }
 
         const now = new Date();
         if (validationResult.data.testimonial_id) {
@@ -577,7 +600,20 @@ export async function submitTestimonial(
                 throw new Error(`Gagal memperbarui testimonial: ${updateError.message}`);
             }
 
-            await refreshProfileSummary(existing.target_profile_id);
+            try {
+                await refreshProfileSummaries([existing.target_profile_id]);
+            } catch (error) {
+                revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
+                revalidateMatchingPaths({ candidateIds: [existing.target_profile_id] });
+                revalidateProfilePaths();
+                return {
+                    ...testimonialInitialState,
+                    formError:
+                        error instanceof Error
+                            ? `Testimoni tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
+                            : "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                };
+            }
         } else {
             const { error: insertError } = await supabase.from("testimonials").insert({
                 team_id: validationResult.data.team_id,
@@ -592,11 +628,25 @@ export async function submitTestimonial(
                 throw new Error(`Gagal menyimpan testimonial: ${insertError.message}`);
             }
 
-            await refreshProfileSummary(validationResult.data.target_profile_id);
+            try {
+                await refreshProfileSummaries([validationResult.data.target_profile_id]);
+            } catch (error) {
+                revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
+                revalidateMatchingPaths({ candidateIds: [validationResult.data.target_profile_id] });
+                revalidateProfilePaths();
+                return {
+                    ...testimonialInitialState,
+                    formError:
+                        error instanceof Error
+                            ? `Testimoni tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
+                            : "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                };
+            }
         }
 
         revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
-        revalidateMatchingPaths();
+        revalidateMatchingPaths({ candidateIds: [validationResult.data.target_profile_id] });
+        revalidateProfilePaths();
 
         return {
             ...testimonialInitialState,

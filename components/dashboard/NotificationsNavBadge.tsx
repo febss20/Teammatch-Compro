@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 interface NotificationsNavBadgeProps {
@@ -26,11 +26,13 @@ function clampUnreadCount(value: number): number {
 
 export default function NotificationsNavBadge({ initialUnreadCount, userId }: NotificationsNavBadgeProps) {
     const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount);
+    const channelInstanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+    const channelName = useMemo(() => `nav-notifications-${userId}-${channelInstanceId}`, [channelInstanceId, userId]);
 
     useEffect(() => {
         const supabase = createBrowserSupabaseClient();
         const channel = supabase
-            .channel(`nav-notifications-${userId}`)
+            .channel(channelName)
             .on(
                 "postgres_changes",
                 {
@@ -61,9 +63,9 @@ export default function NotificationsNavBadge({ initialUnreadCount, userId }: No
             .subscribe();
 
         return () => {
-            void supabase.removeChannel(channel);
+            void channel.unsubscribe().finally(() => supabase.removeChannel(channel));
         };
-    }, [userId]);
+    }, [channelName, userId]);
 
     if (unreadCount <= 0) {
         return null;

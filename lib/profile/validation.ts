@@ -27,26 +27,18 @@ export const profileStepTwoSchema = z
             .transform(deduplicateAndNormalize),
         competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).min(1, "Pilih minimal 1 jenis lomba."),
         custom_competition_types: z
-            .array(
-                z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."),
-            )
+            .array(z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."))
             .default([])
             .transform(deduplicateAndNormalize),
     })
-    .refine(
-        (data) => data.skills.length + data.custom_skills.length <= 5,
-        {
-            message: "Total skill tidak boleh lebih dari 5.",
-            path: ["skills"],
-        },
-    )
-    .refine(
-        (data) => data.skills.length + data.custom_skills.length >= 1,
-        {
-            message: "Pilih minimal 1 skill.",
-            path: ["skills"],
-        },
-    );
+    .refine((data) => data.skills.length + data.custom_skills.length <= 5, {
+        message: "Total skill tidak boleh lebih dari 5.",
+        path: ["skills"],
+    })
+    .refine((data) => data.skills.length + data.custom_skills.length >= 1, {
+        message: "Pilih minimal 1 skill.",
+        path: ["skills"],
+    });
 
 export const profileStepThreeSchema = z.object({
     available_months: z
@@ -75,9 +67,7 @@ export const updateProfileSchema = z
             .transform(deduplicateAndNormalize),
         competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).min(1, "Pilih minimal 1 jenis lomba."),
         custom_competition_types: z
-            .array(
-                z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."),
-            )
+            .array(z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."))
             .default([])
             .transform(deduplicateAndNormalize),
         available_months: z
@@ -87,20 +77,14 @@ export const updateProfileSchema = z
         public_visibility: visibilitySchema,
         show_competition_history: z.union([z.literal("true"), z.literal("false")]).transform((value) => value === "true"),
     })
-    .refine(
-        (data) => data.skills.length + data.custom_skills.length <= 5,
-        {
-            message: "Total skill tidak boleh lebih dari 5.",
-            path: ["skills"],
-        },
-    )
-    .refine(
-        (data) => data.skills.length + data.custom_skills.length >= 1,
-        {
-            message: "Pilih minimal 1 skill.",
-            path: ["skills"],
-        },
-    );
+    .refine((data) => data.skills.length + data.custom_skills.length <= 5, {
+        message: "Total skill tidak boleh lebih dari 5.",
+        path: ["skills"],
+    })
+    .refine((data) => data.skills.length + data.custom_skills.length >= 1, {
+        message: "Pilih minimal 1 skill.",
+        path: ["skills"],
+    });
 
 export function safeParseProfileStepOne(formData: FormData) {
     return profileStepOneSchema.safeParse({

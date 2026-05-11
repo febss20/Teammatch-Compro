@@ -8,7 +8,7 @@ export {
     mapBoardRecord,
     mapBoardSlot,
 } from "@/lib/boards/data";
-export { getCandidateById, getCandidateDiscovery, getJoinRequestsForUser } from "@/lib/matching/data";
+export { getCandidateById, getCandidateDiscovery, getCandidateTestimonials, getJoinRequestsForUser } from "@/lib/matching/data";
 export { getProfileRecord, getTaxonomies } from "@/lib/profile/data";
 export { mapProfileRecord } from "@/lib/profile/mappers";
 export {

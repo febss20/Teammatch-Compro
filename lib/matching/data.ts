@@ -1,7 +1,14 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { CandidateRecord, CompetitionTypeRecord, DashboardMonth, JoinRequestRecord, SkillOption } from "@/lib/types";
+import type {
+    CandidateRecord,
+    CandidateTestimonialItem,
+    CompetitionTypeRecord,
+    DashboardMonth,
+    JoinRequestRecord,
+    SkillOption,
+} from "@/lib/types";
 import { getProfileNameMap, getProfileRecord } from "@/lib/profile/data";
 import { mapCompetitionType, mapProfileRecord, mapSkill } from "@/lib/profile/mappers";
 
@@ -135,6 +142,10 @@ export async function getCandidateDiscovery(viewerId: string): Promise<{
             availableMonths: availability?.months ?? [],
             hoursPerWeek: availability?.hours ?? null,
             completionScore: 100,
+            competitionsCount: profileRow.show_competition_history ? (summary?.competitions ?? 0) : 0,
+            bestResult: profileRow.show_competition_history ? (summary?.bestResult ?? null) : null,
+            testimonialCount: summary?.count ?? 0,
+            testimonialAverage: summary?.avg ?? 0,
         });
 
         const skillOverlap = skills.filter((skill) => viewerSkillSet.has(skill.id)).length;
@@ -168,6 +179,31 @@ export async function getCandidateDiscovery(viewerId: string): Promise<{
 export async function getCandidateById(viewerId: string, candidateId: string): Promise<CandidateRecord | null> {
     const candidateData = await getCandidateDiscovery(viewerId);
     return candidateData.candidates.find((candidate) => candidate.profile.id === candidateId) ?? null;
+}
+
+export async function getCandidateTestimonials(candidateId: string): Promise<CandidateTestimonialItem[]> {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+        .from("testimonials")
+        .select("id, author_id, rating, body, created_at")
+        .eq("target_profile_id", candidateId)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        throw new Error(`Gagal memuat testimoni kandidat: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    const profileMap = await getProfileNameMap([...new Set(rows.map((row) => row.author_id))]);
+
+    return rows.map((row) => ({
+        id: row.id,
+        authorId: row.author_id,
+        authorName: profileMap.get(row.author_id)?.fullName ?? profileMap.get(row.author_id)?.username ?? null,
+        rating: row.rating,
+        body: row.body,
+        createdAt: row.created_at,
+    }));
 }
 
 export async function getJoinRequestsForUser(userId: string): Promise<JoinRequestRecord[]> {

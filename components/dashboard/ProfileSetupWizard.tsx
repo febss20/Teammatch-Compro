@@ -29,61 +29,60 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
     const customSkills = useMemo(
         () => (profile?.skills ?? []).filter((skill) => skill.slug.startsWith("custom-")),
-        [profile?.skills]
+        [profile?.skills],
     );
     const customCompetitions = useMemo(
         () => (profile?.competitionTypes ?? []).filter((comp) => comp.slug.startsWith("custom-")),
-        [profile?.competitionTypes]
+        [profile?.competitionTypes],
     );
 
     const savedTaxonomySkillIds = useMemo(
-        () => new Set(
-            (profile?.skills ?? [])
-                .filter((skill) => !skill.slug.startsWith("custom-"))
-                .map((skill) => skill.id)
-        ),
-        [profile?.skills]
+        () => new Set((profile?.skills ?? []).filter((skill) => !skill.slug.startsWith("custom-")).map((skill) => skill.id)),
+        [profile?.skills],
     );
     const savedTaxonomyCompetitionIds = useMemo(
-        () => new Set(
-            (profile?.competitionTypes ?? [])
-                .filter((comp) => !comp.slug.startsWith("custom-"))
-                .map((comp) => comp.id)
-        ),
-        [profile?.competitionTypes]
+        () =>
+            new Set(
+                (profile?.competitionTypes ?? []).filter((comp) => !comp.slug.startsWith("custom-")).map((comp) => comp.id),
+            ),
+        [profile?.competitionTypes],
     );
 
-    const selectedMonths = useMemo(
-        () => new Set(profile?.availableMonths ?? []),
-        [profile?.availableMonths]
-    );
+    const selectedMonths = useMemo(() => new Set(profile?.availableMonths ?? []), [profile?.availableMonths]);
 
     const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
-    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] = useState<Set<string>>(savedTaxonomyCompetitionIds);
+    const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] =
+        useState<Set<string>>(savedTaxonomyCompetitionIds);
     const [showCustomSkills, setShowCustomSkills] = useState(customSkills.length > 0);
     const [showCustomCompetitions, setShowCustomCompetitions] = useState(customCompetitions.length > 0);
     const [customSkillsCount, setCustomSkillsCount] = useState(customSkills.length);
     const [customCompetitionsCount, setCustomCompetitionsCount] = useState(customCompetitions.length);
 
     useEffect(() => {
-        if (stepOneState.success && maxReachedStep < 2) {
-            const timer = setTimeout(() => {
-                setCurrentStep(2);
-                setMaxReachedStep(2);
-            }, 300);
-            return () => clearTimeout(timer);
+        if (!stepOneState.success) {
+            return;
         }
-    }, [stepOneState.success, maxReachedStep]);
+
+        const timeoutId = window.setTimeout(() => {
+            setMaxReachedStep((previous) => Math.max(previous, 2));
+            setCurrentStep(2);
+        }, 0);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [stepOneState.success, stepOneState.message]);
 
     useEffect(() => {
-        if (stepTwoState.success && maxReachedStep < 3) {
-            const timer = setTimeout(() => {
-                setCurrentStep(3);
-                setMaxReachedStep(3);
-            }, 300);
-            return () => clearTimeout(timer);
+        if (!stepTwoState.success) {
+            return;
         }
-    }, [stepTwoState.success, maxReachedStep]);
+
+        const timeoutId = window.setTimeout(() => {
+            setMaxReachedStep((previous) => Math.max(previous, 3));
+            setCurrentStep(3);
+        }, 0);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [stepTwoState.success, stepTwoState.message]);
 
     const totalSkills = selectedTaxonomySkillIds.size + customSkillsCount;
     const totalCompetitions = selectedTaxonomyCompetitionIds.size + customCompetitionsCount;
@@ -98,12 +97,13 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             type="button"
                             onClick={() => setCurrentStep(step)}
                             disabled={step > maxReachedStep}
-                            className={`brutal-chip px-4 py-3 text-base ${currentStep === step
+                            className={`brutal-chip px-4 py-3 text-base ${
+                                currentStep === step
                                     ? "bg-[var(--tm-accent-2)]"
                                     : step > maxReachedStep
-                                        ? "opacity-40 cursor-not-allowed"
-                                        : ""
-                                }`}
+                                      ? "opacity-40 cursor-not-allowed"
+                                      : ""
+                            }`}
                         >
                             Step {step}
                         </button>
@@ -239,7 +239,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                     disabled={stepTwoPending}
                                                 />
                                                 <span>
-                                                    <span className="display-font block text-xl leading-none">{skill.label}</span>
+                                                    <span className="display-font block text-xl leading-none">
+                                                        {skill.label}
+                                                    </span>
                                                     <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
                                                 </span>
                                             </label>
@@ -306,7 +308,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                     }}
                                                     disabled={stepTwoPending}
                                                 />
-                                                <span className="display-font text-xl leading-none">{competitionType.label}</span>
+                                                <span className="display-font text-xl leading-none">
+                                                    {competitionType.label}
+                                                </span>
                                             </label>
                                         ))}
                                 </div>

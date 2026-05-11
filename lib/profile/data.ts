@@ -1,7 +1,13 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
+import type {
+    CompetitionTypeRecord,
+    DashboardMonth,
+    ProfileCompetitionHistoryItem,
+    ProfileRecord,
+    SkillOption,
+} from "@/lib/types";
 import { mapCompetitionType, mapProfileRecord, mapSkill } from "@/lib/profile/mappers";
 
 interface SkillLinkRow {
@@ -30,6 +36,22 @@ interface CustomSkillRow {
 interface CustomCompetitionTypeRow {
     id: string;
     label: string;
+}
+
+interface ProfileSummaryRow {
+    average_rating: number;
+    testimonial_count: number;
+    best_result: string | null;
+    competitions_count: number;
+}
+
+interface CompetitionHistoryRow {
+    id: string;
+    competition_name: string;
+    role_name: string;
+    best_result: string | null;
+    created_at: string;
+    team_id: string | null;
 }
 
 export async function getTaxonomies(): Promise<{
@@ -69,6 +91,8 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         { data: availabilityRow, error: availabilityError },
         { data: customSkills, error: customSkillsError },
         { data: customCompetitions, error: customCompetitionsError },
+        { data: profileSummaryRow, error: profileSummaryError },
+        { data: competitionHistoryRows, error: competitionHistoryError },
     ] = await Promise.all([
         supabase
             .from("profiles")
@@ -89,6 +113,17 @@ export async function getProfileRecord(profileId: string, email?: string | null)
             .maybeSingle(),
         supabase.from("profile_custom_skills").select("id, label").eq("profile_id", profileId),
         supabase.from("profile_custom_competition_type").select("id, label").eq("profile_id", profileId),
+        supabase
+            .from("profile_testimonial_summaries")
+            .select("average_rating, testimonial_count, best_result, competitions_count")
+            .eq("profile_id", profileId)
+            .maybeSingle(),
+        supabase
+            .from("competition_history")
+            .select("id, competition_name, role_name, best_result, created_at, team_id")
+            .eq("profile_id", profileId)
+            .order("created_at", { ascending: false })
+            .limit(6),
     ]);
 
     if (profileError) {
@@ -118,11 +153,28 @@ export async function getProfileRecord(profileId: string, email?: string | null)
     if (customCompetitionsError) {
         throw new Error(`Gagal memuat jenis lomba custom: ${customCompetitionsError.message}`);
     }
+    if (profileSummaryError) {
+        throw new Error(`Gagal memuat trust snapshot profil: ${profileSummaryError.message}`);
+    }
+    if (competitionHistoryError) {
+        throw new Error(`Gagal memuat riwayat lomba profil: ${competitionHistoryError.message}`);
+    }
 
     const skillLinkRows = (skillLinks ?? []) as unknown as SkillLinkRow[];
     const competitionLinkRows = (competitionLinks ?? []) as unknown as CompetitionLinkRow[];
     const customSkillRows = (customSkills ?? []) as unknown as CustomSkillRow[];
     const customCompetitionRows = (customCompetitions ?? []) as unknown as CustomCompetitionTypeRow[];
+    const profileSummary = (profileSummaryRow ?? null) as ProfileSummaryRow | null;
+    const competitionHistory = ((competitionHistoryRows ?? []) as CompetitionHistoryRow[]).map(
+        (item): ProfileCompetitionHistoryItem => ({
+            id: item.id,
+            competitionName: item.competition_name,
+            roleName: item.role_name,
+            bestResult: item.best_result,
+            recordedAt: item.created_at,
+            teamId: item.team_id,
+        }),
+    );
 
     const taxonomySkills = skillLinkRows
         .map((item) => item.skill_taxonomy)
@@ -169,6 +221,11 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         availableMonths: (availabilityRow?.available_months ?? []) as DashboardMonth[],
         hoursPerWeek: availabilityRow?.hours_per_week ?? null,
         completionScore: Math.round((completionScore / 7) * 100),
+        competitionsCount: profileSummary?.competitions_count ?? 0,
+        bestResult: profileSummary?.best_result ?? null,
+        testimonialCount: profileSummary?.testimonial_count ?? 0,
+        testimonialAverage: profileSummary?.average_rating ?? 0,
+        competitionHistory,
     });
 }
 

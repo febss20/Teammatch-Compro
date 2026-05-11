@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import JoinRequestComposer from "@/components/dashboard/JoinRequestComposer";
 import { requireCompletedProfile } from "@/lib/auth";
-import { getCandidateById } from "@/lib/dashboard/data";
+import { getCandidateById, getCandidateTestimonials } from "@/lib/dashboard/data";
+import { formatDashboardDateCompact } from "@/lib/shared/formatters";
 
 function formatStatsLabel(value: number, singularLabel: string, pluralLabel: string): string {
     return `${value} ${value === 1 ? singularLabel : pluralLabel}`;
@@ -10,7 +11,7 @@ function formatStatsLabel(value: number, singularLabel: string, pluralLabel: str
 export default async function CandidateDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { user, profile } = await requireCompletedProfile();
     const { id } = await params;
-    const candidate = await getCandidateById(user.id, id);
+    const [candidate, testimonials] = await Promise.all([getCandidateById(user.id, id), getCandidateTestimonials(id)]);
 
     if (!candidate) {
         notFound();
@@ -86,23 +87,27 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                         <p className="display-font text-3xl leading-none">Trust Snapshot</p>
                         <div className="mt-4 grid gap-3">
                             <div className="brutal-panel-soft p-4">
+                                <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Kompatibilitas</p>
+                                <p className="mt-2 display-font text-3xl leading-none">{candidate.compatibilityScore ?? 0}%</p>
+                            </div>
+                            <div className="brutal-panel-soft p-4">
                                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Track record</p>
                                 <p className="mt-2 display-font text-3xl leading-none">
-                                    {formatStatsLabel(candidate.competitionsCount, "lomba", "lomba")}
+                                    {formatStatsLabel(candidate.competitionsCount ?? 0, "lomba", "lomba")}
                                 </p>
                             </div>
                             <div className="brutal-panel-soft p-4">
                                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Rating</p>
                                 <p className="mt-2 display-font text-3xl leading-none">
-                                    {candidate.testimonialAverage.toFixed(1)} / 5
+                                    {(candidate.testimonialAverage ?? 0).toFixed(1)} / 5
                                 </p>
                                 <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
-                                    {formatStatsLabel(candidate.testimonialCount, "testimoni", "testimoni")}
+                                    {formatStatsLabel(candidate.testimonialCount ?? 0, "testimoni", "testimoni")}
                                 </p>
                             </div>
                             <div className="brutal-panel-soft p-4">
                                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">Best result</p>
-                                <p className="mt-2 display-font text-3xl leading-none">{candidate.bestResult ?? "Belum ada"}</p>
+                                <p className="mt-2 display-font text-3xl leading-none">{candidate.bestResult ?? "BELUM ADA"}</p>
                             </div>
                         </div>
                     </div>
@@ -122,6 +127,36 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                         </div>
                     </div>
                 </aside>
+            </section>
+
+            <section className="brutal-panel bg-[var(--tm-paper-strong)] p-6">
+                <p className="display-font text-3xl leading-none">Testimoni</p>
+                {testimonials.length > 0 ? (
+                    <div className="mt-4 grid gap-3">
+                        {testimonials.map((testimonial) => (
+                            <article key={testimonial.id} className="brutal-panel-soft p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="display-font text-2xl leading-none">
+                                            {testimonial.authorName ?? "Rekan tim TeamMatch"}
+                                        </p>
+                                        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                                            {formatDashboardDateCompact(testimonial.createdAt)}
+                                        </p>
+                                    </div>
+                                    <span className="brutal-chip bg-white">{testimonial.rating} / 5</span>
+                                </div>
+                                <p className="mt-4 text-base leading-8 text-[var(--tm-muted)] break-words">
+                                    {testimonial.body}
+                                </p>
+                            </article>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="mt-4 text-sm leading-7 text-[var(--tm-muted)]">
+                        Belum ada testimoni untuk {candidate.profile.fullName ?? candidate.profile.username ?? "kandidat ini"}
+                    </p>
+                )}
             </section>
 
             {matchedSkills.length > 0 && (

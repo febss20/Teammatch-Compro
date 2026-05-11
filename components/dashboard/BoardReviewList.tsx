@@ -18,7 +18,12 @@ function normalizeSkillLabel(value: string): string {
     return value.trim().toLowerCase();
 }
 
-export default function BoardReviewList({ applications, boardRequiredSkills, slotSkillsMap, candidatesById }: BoardReviewListProps) {
+export default function BoardReviewList({
+    applications,
+    boardRequiredSkills,
+    slotSkillsMap,
+    candidatesById,
+}: BoardReviewListProps) {
     const [queueFilter, setQueueFilter] = useState<ReviewQueueFilter>("all");
 
     const filteredApplications = useMemo(() => {
@@ -60,9 +65,10 @@ export default function BoardReviewList({ applications, boardRequiredSkills, slo
                     (candidate?.profile.skills ?? []).map((skill) => normalizeSkillLabel(skill.label)),
                 );
 
-                const relevantSkills = application.boardSlotId && slotSkillsMap?.has(application.boardSlotId)
-                    ? slotSkillsMap.get(application.boardSlotId)!
-                    : boardRequiredSkills;
+                const relevantSkills =
+                    application.boardSlotId && slotSkillsMap?.has(application.boardSlotId)
+                        ? slotSkillsMap.get(application.boardSlotId)!
+                        : boardRequiredSkills;
 
                 const matchedSkills = relevantSkills.filter((skill) => candidateSkillSet.has(normalizeSkillLabel(skill)));
                 const missingSkills = relevantSkills.filter((skill) => !candidateSkillSet.has(normalizeSkillLabel(skill)));
@@ -97,9 +103,7 @@ export default function BoardReviewList({ applications, boardRequiredSkills, slo
                         {application.selectedRole && (
                             <div className="brutal-panel-soft p-4">
                                 <p className="display-font text-xl">Role yang Dilamar</p>
-                                <p className="mt-2 text-sm text-[var(--tm-muted)]">
-                                    {application.selectedRole}
-                                </p>
+                                <p className="mt-2 text-sm text-[var(--tm-muted)]">{application.selectedRole}</p>
                             </div>
                         )}
 
