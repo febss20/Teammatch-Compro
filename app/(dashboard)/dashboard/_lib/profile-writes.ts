@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { insertPrivacyAuditEvent } from "@/app/(dashboard)/dashboard/_lib/privacy";
 
@@ -8,16 +9,14 @@ export async function persistProfileStepOne(
     payload: { full_name: string; campus_name: string; username: string; bio: string },
 ): Promise<void> {
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase
-        .from("profiles")
-        .upsert({
-            id: userId,
-            full_name: payload.full_name,
-            campus_name: payload.campus_name,
-            username: payload.username,
-            bio: payload.bio,
-            updated_at: new Date().toISOString(),
-        })
+    const { error } = await supabase.from("profiles").upsert({
+        id: userId,
+        full_name: payload.full_name,
+        campus_name: payload.campus_name,
+        username: payload.username,
+        bio: payload.bio,
+        updated_at: new Date().toISOString(),
+    });
 
     if (error) {
         throw new Error(`Gagal menyimpan identitas profil: ${error.message}`);
@@ -168,7 +167,7 @@ export async function persistProfileStepThree(
 }
 
 export async function refreshProfileSummary(profileId: string): Promise<void> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const [
         { count: historyCount, error: historyError },
         { data: bestResultRow, error: historyBestError },
@@ -186,15 +185,21 @@ export async function refreshProfileSummary(profileId: string): Promise<void> {
         supabase.from("testimonials").select("rating").eq("target_profile_id", profileId),
     ]);
 
-    if (historyError || historyBestError || testimonialError) {
-        return;
+    if (historyError) {
+        throw new Error(`Gagal menghitung competition history untuk ${profileId}: ${historyError.message}`);
+    }
+    if (historyBestError) {
+        throw new Error(`Gagal memuat best result untuk ${profileId}: ${historyBestError.message}`);
+    }
+    if (testimonialError) {
+        throw new Error(`Gagal memuat testimonial untuk ${profileId}: ${testimonialError.message}`);
     }
 
     const ratings = (testimonialRows ?? []).map((row) => row.rating);
     const averageRating =
         ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(2)) : 0;
 
-    await supabase.from("profile_testimonial_summaries").upsert({
+    const { error: upsertError } = await supabase.from("profile_testimonial_summaries").upsert({
         profile_id: profileId,
         average_rating: averageRating,
         testimonial_count: ratings.length,
@@ -202,4 +207,25 @@ export async function refreshProfileSummary(profileId: string): Promise<void> {
         competitions_count: historyCount ?? 0,
         updated_at: new Date().toISOString(),
     });
+
+    if (upsertError) {
+        throw new Error(`Gagal menyimpan trust snapshot untuk ${profileId}: ${upsertError.message}`);
+    }
+}
+
+export async function refreshProfileSummaries(profileIds: string[]): Promise<void> {
+    const uniqueProfileIds = [...new Set(profileIds.filter((profileId) => profileId.length > 0))];
+    const failures: string[] = [];
+
+    for (const profileId of uniqueProfileIds) {
+        try {
+            await refreshProfileSummary(profileId);
+        } catch (error) {
+            failures.push(error instanceof Error ? error.message : `Gagal merefresh snapshot untuk ${profileId}.`);
+        }
+    }
+
+    if (failures.length > 0) {
+        throw new Error(failures.join(" | "));
+    }
 }

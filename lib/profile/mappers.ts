@@ -1,4 +1,10 @@
-import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
+import type {
+    CompetitionTypeRecord,
+    DashboardMonth,
+    ProfileCompetitionHistoryItem,
+    ProfileRecord,
+    SkillOption,
+} from "@/lib/types";
 
 interface SkillRow {
     id: string;
@@ -31,6 +37,11 @@ interface ProfileRecordInput {
     availableMonths?: DashboardMonth[];
     hoursPerWeek?: number | null;
     completionScore?: number;
+    competitionsCount?: number;
+    bestResult?: string | null;
+    testimonialCount?: number;
+    testimonialAverage?: number;
+    competitionHistory?: ProfileCompetitionHistoryItem[];
 }
 
 export function mapSkill(row: SkillRow): SkillOption {
@@ -69,5 +80,10 @@ export function mapProfileRecord(input: ProfileRecordInput): ProfileRecord {
         availableMonths: input.availableMonths ?? [],
         hoursPerWeek: input.hoursPerWeek ?? null,
         completionScore: input.completionScore ?? 0,
+        competitionsCount: input.competitionsCount ?? 0,
+        bestResult: input.bestResult ?? null,
+        testimonialCount: input.testimonialCount ?? 0,
+        testimonialAverage: input.testimonialAverage ?? 0,
+        competitionHistory: input.competitionHistory ?? [],
     };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { applyToBoard } from "@/app/(dashboard)/dashboard/actions";
 import { boardApplicationInitialState } from "@/lib/forms";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
@@ -13,6 +13,13 @@ interface BoardApplicationFormProps {
 export default function BoardApplicationForm({ board }: BoardApplicationFormProps) {
     const [state, formAction, pending] = useActionState(applyToBoard, boardApplicationInitialState);
     const defaultSlot = board.slots[0];
+    const [selectedSlotId, setSelectedSlotId] = useState<string>(defaultSlot?.id ?? "");
+    const [selectedRole, setSelectedRole] = useState<string>(defaultSlot?.roleName ?? "");
+    const selectedSlot = useMemo(
+        () => board.slots.find((slot) => slot.id === selectedSlotId) ?? defaultSlot ?? null,
+        [board.slots, defaultSlot, selectedSlotId],
+    );
+    const relevantSkills = selectedSlot?.requiredSkills?.length ? selectedSlot.requiredSkills : board.requiredSkills;
 
     return (
         <form action={formAction} className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-6">
@@ -29,8 +36,16 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
                     id="board_slot_id"
                     name="board_slot_id"
                     className="brutal-select"
-                    defaultValue={defaultSlot?.id ?? ""}
+                    value={selectedSlotId}
                     disabled={pending}
+                    onChange={(event) => {
+                        const nextSlotId = event.target.value;
+                        const nextSlot = board.slots.find((slot) => slot.id === nextSlotId) ?? null;
+                        setSelectedSlotId(nextSlotId);
+                        if (nextSlot) {
+                            setSelectedRole(nextSlot.roleName);
+                        }
+                    }}
                 >
                     {board.slots.map((slot: BoardSlotRecord) => (
                         <option key={slot.id} value={slot.id}>
@@ -53,8 +68,9 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
                     id="selected_role"
                     name="selected_role"
                     className="brutal-input"
-                    defaultValue={defaultSlot?.roleName ?? ""}
+                    value={selectedRole}
                     disabled={pending}
+                    onChange={(event) => setSelectedRole(event.target.value)}
                 />
             </div>
 
@@ -76,7 +92,7 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
             <div className="brutal-panel-soft p-4">
                 <p className="display-font text-2xl leading-none">Skill Match Snapshot</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                    {board.requiredSkills.map((skill) => (
+                    {relevantSkills.map((skill) => (
                         <span key={skill} className="brutal-chip bg-[var(--tm-accent-2)]">
                             {skill}
                         </span>

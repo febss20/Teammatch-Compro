@@ -16,6 +16,7 @@ export default async function BoardReviewPage({ params }: { params: Promise<{ id
 
     const [applications, candidateData] = await Promise.all([getBoardApplicationsForBoard(id), getCandidateDiscovery(user.id)]);
     const candidatesById = new Map(candidateData.candidates.map((candidate) => [candidate.profile.id, candidate]));
+    const slotSkillsMap = new Map(board.slots.map((slot) => [slot.id, slot.requiredSkills] as const));
 
     return (
         <div className="space-y-6">
@@ -38,6 +39,7 @@ export default async function BoardReviewPage({ params }: { params: Promise<{ id
                 <BoardReviewList
                     applications={applications}
                     boardRequiredSkills={board.requiredSkills}
+                    slotSkillsMap={slotSkillsMap}
                     candidatesById={candidatesById}
                 />
             ) : (
