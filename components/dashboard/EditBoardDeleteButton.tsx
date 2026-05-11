@@ -34,7 +34,7 @@ export default function EditBoardDeleteButton({ id }: EditBoardDeleteButtonProps
                         return;
                     }
 
-                    router.replace("/dashboard?deleted=1");
+                    router.replace("/dashboard/boards?deleted=1");
                     router.refresh();
                 }}
                 className="w-full"

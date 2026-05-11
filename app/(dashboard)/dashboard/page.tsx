@@ -1,138 +1,137 @@
 import Link from "next/link";
 import BoardList from "@/components/dashboard/BoardList";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
-import { requireUser } from "@/lib/auth";
-import type { CompetitionIdeaBoardRecord } from "@/lib/types";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requireCompletedProfile } from "@/lib/auth";
+import { getDashboardSnapshot, getOwnBoards } from "@/lib/dashboard/data";
 
-function mapBoardRecord(row: {
-    id: string;
-    user_id: string;
-    title: string;
-    competition_type: string;
-    description: string;
-    deadline: string;
-    required_skills: string[];
-    status: string;
-    created_at: string;
-    updated_at: string;
-}): CompetitionIdeaBoardRecord {
-    return {
-        id: row.id,
-        userId: row.user_id,
-        title: row.title,
-        competitionType: row.competition_type,
-        description: row.description,
-        deadline: row.deadline,
-        requiredSkills: row.required_skills,
-        status: row.status === "closed" ? "closed" : "open",
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-    };
-}
-
-function getStatusMessage(searchParams: { created?: string; updated?: string; deleted?: string }): string | null {
-    if (searchParams.created === "1") {
-        return "Board ide berhasil dibuat.";
+function getStatusMessage(searchParams: { profile?: string }): string | null {
+    if (searchParams.profile === "completed") {
+        return "Profil Anda lengkap dan siap dipakai untuk matching.";
     }
-
-    if (searchParams.updated === "1") {
-        return "Board ide berhasil diperbarui.";
-    }
-
-    if (searchParams.deleted === "1") {
-        return "Board ide berhasil dihapus.";
-    }
-
     return null;
 }
 
-export default async function DashboardPage({
-    searchParams,
-}: {
-    searchParams: Promise<{ created?: string; updated?: string; deleted?: string }>;
-}) {
-    const user = await requireUser();
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-        .from("competition_idea_boards")
-        .select("id, user_id, title, competition_type, description, deadline, required_skills, status, created_at, updated_at")
-        .order("created_at", { ascending: false });
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ profile?: string }> }) {
+    const { user, profile } = await requireCompletedProfile();
+    const [snapshot, boards, resolvedSearchParams] = await Promise.all([
+        getDashboardSnapshot(user.id),
+        getOwnBoards(user.id),
+        searchParams,
+    ]);
 
-    if (error) {
-        throw new Error(`Gagal memuat dashboard board ide: ${error.message}`);
-    }
-
-    const boards = (data ?? []).map(mapBoardRecord);
-    const resolvedSearchParams = await searchParams;
     const statusMessage = getStatusMessage(resolvedSearchParams);
 
     return (
-        <div className="min-h-screen px-4 py-10 md:py-14">
-            <div className="page-frame space-y-8">
-                <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-                    <div className="brutal-panel bg-[var(--tm-line)] p-6 text-[var(--tm-paper-strong)] md:p-8">
-                        <div className="section-kicker w-fit !bg-[var(--tm-accent-2)] !text-[var(--tm-line)]">
-                            Dashboard pribadi
+        <div className="space-y-8">
+            <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+                <div className="brutal-panel bg-[var(--tm-line)] p-6 text-[var(--tm-paper-strong)] md:p-8">
+                    <div className="section-kicker w-fit !bg-[var(--tm-accent-2)] !text-[var(--tm-line)]">Dashboard home</div>
+                    <h1 className="mt-5 display-font text-[clamp(4rem,9vw,7rem)] leading-[0.88]">
+                        MATCH
+                        <br />
+                        PLATFORM
+                        <br />
+                        READY
+                    </h1>
+                    <p className="mt-5 max-w-2xl text-lg leading-8 text-[#f7eeda]">
+                        Selamat datang, {profile.fullName ?? user.email ?? "Pengguna TeamMatch"}. Profil Anda siap dipakai untuk
+                        mencari rekan, mempublikasikan board, dan mengelola request kolaborasi.
+                    </p>
+                </div>
+
+                <div className="grid gap-4">
+                    <div className="brutal-panel bg-[var(--tm-paper-strong)] p-6">
+                        <p className="display-font text-3xl leading-none">Aksi cepat</p>
+                        <div className="mt-5 grid gap-3 md:grid-cols-2">
+                            <Link href="/dashboard/find-team" className="brutal-button">
+                                Find Team
+                            </Link>
+                            <Link href="/dashboard/boards" className="brutal-button-secondary">
+                                Explore Boards
+                            </Link>
+                            <Link href="/dashboard/teams" className="brutal-button-secondary">
+                                My Teams
+                            </Link>
+                            <Link href="/dashboard/profile" className="brutal-button-secondary">
+                                Edit Profile
+                            </Link>
+                            <DashboardLogoutButton />
                         </div>
-                        <h1 className="mt-5 display-font text-[clamp(4rem,9vw,7rem)] leading-[0.88]">
-                            KELOLA
-                            <br />
-                            BOARD
-                            <br />
-                            IDEMU
-                        </h1>
-                        <p className="mt-5 max-w-2xl text-lg leading-8 text-[#f7eeda]">
-                            Selamat datang, {user.email ?? "Pengguna TeamMatch"}. Semua ide lomba Anda tersimpan di sini agar
-                            lebih mudah dipantau, diperbarui, dan dirapikan.
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="brutal-panel bg-[var(--tm-accent-2)] p-5">
+                            <p className="display-font text-2xl leading-none">Profile</p>
+                            <p className="mt-4 display-font text-5xl leading-none">{profile.completionScore}%</p>
+                        </div>
+                        <div className="brutal-panel p-5">
+                            <p className="display-font text-2xl leading-none">Boards</p>
+                            <p className="mt-4 display-font text-5xl leading-none">{snapshot.boardsCount}</p>
+                        </div>
+                        <div className="brutal-panel bg-[#d6e4ff] p-5">
+                            <p className="display-font text-2xl leading-none">Requests</p>
+                            <p className="mt-4 display-font text-5xl leading-none">{snapshot.outgoingRequestCount}</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {statusMessage && <div className="brutal-alert-success text-sm">{statusMessage}</div>}
+
+            <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+                <div className="space-y-5">
+                    <div className="flex items-end justify-between gap-4">
+                        <div className="space-y-3">
+                            <div className="section-kicker">Boards terbaru</div>
+                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">IDE YANG SEDANG ANDA JALANKAN</h2>
+                        </div>
+                        <Link href="/dashboard/boards/new" className="brutal-button-secondary">
+                            Buat board baru
+                        </Link>
+                    </div>
+                    {boards.length > 0 ? (
+                        <BoardList boards={boards.slice(0, 3)} />
+                    ) : (
+                        <DashboardEmptyState
+                            actionHref="/dashboard/boards/new"
+                            actionLabel="Buat board baru"
+                            title="Belum ada board aktif"
+                            body="Mulai dengan menerbitkan board publik pertama Anda agar kandidat lain bisa melamar."
+                        />
+                    )}
+                </div>
+
+                <div className="grid gap-4">
+                    <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
+                        <p className="display-font text-3xl leading-none">Signal terbaru</p>
+                        <p className="mt-3 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                            Pelamar masuk: {snapshot.incomingApplicationCount}
                         </p>
                     </div>
-
-                    <div className="grid gap-4">
-                        <div className="brutal-panel bg-[var(--tm-paper-strong)] p-6">
-                            <p className="display-font text-3xl leading-none">Aksi cepat</p>
-                            <div className="mt-5 flex flex-wrap gap-3">
-                                <Link href="/dashboard/boards/new" className="brutal-button">
-                                    Buat board ide
-                                </Link>
-                                <DashboardLogoutButton />
-                            </div>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="brutal-panel bg-[var(--tm-accent-2)] p-5">
-                                <p className="display-font text-2xl leading-none">Jumlah board</p>
-                                <p className="mt-4 display-font text-5xl leading-none">{boards.length}</p>
-                            </div>
-                            <div className="brutal-panel p-5">
-                                <p className="display-font text-2xl leading-none">Ruang kerja</p>
-                                <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--tm-muted)]">
-                                    Privat dan tersusun
-                                </p>
-                            </div>
+                    <div className="brutal-panel bg-[var(--tm-paper-strong)] p-5">
+                        <p className="display-font text-3xl leading-none">Notifikasi terbaru</p>
+                        <p className="mt-3 text-sm uppercase tracking-[0.16em] text-[var(--tm-muted)]">
+                            Unread: {snapshot.unreadNotificationsCount}
+                        </p>
+                        <div className="mt-4 grid gap-3">
+                            {snapshot.notifications.length > 0 ? (
+                                snapshot.notifications.map((notification) => (
+                                    <Link
+                                        key={notification.id}
+                                        href={notification.linkPath ?? "/dashboard"}
+                                        className="brutal-panel-soft block p-4"
+                                    >
+                                        <p className="display-font text-xl leading-none">{notification.title}</p>
+                                        <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">{notification.body}</p>
+                                    </Link>
+                                ))
+                            ) : (
+                                <p className="text-sm leading-7 text-[var(--tm-muted)]">Belum ada notifikasi penting.</p>
+                            )}
                         </div>
                     </div>
-                </section>
-
-                {statusMessage && <div className="brutal-alert-success text-sm">{statusMessage}</div>}
-
-                {boards.length === 0 ? (
-                    <section className="brutal-stack">
-                        <div className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-8 text-center md:p-10">
-                            <div className="mx-auto section-kicker">Belum ada board</div>
-                            <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">MULAI DARI IDE PERTAMA</h2>
-                            <p className="mx-auto max-w-2xl text-base leading-8 text-[var(--tm-muted)]">
-                                Setelah board pertama dibuat, Anda bisa memperbarui detail, menyesuaikan kebutuhan tim, atau
-                                menghapusnya kapan saja dari dashboard ini.
-                            </p>
-                            <Link href="/dashboard/boards/new" className="brutal-button mx-auto">
-                                Buat board pertama
-                            </Link>
-                        </div>
-                    </section>
-                ) : (
-                    <BoardList boards={boards} />
-                )}
-            </div>
+                </div>
+            </section>
         </div>
     );
 }
