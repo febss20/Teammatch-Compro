@@ -24,6 +24,7 @@ function createInitialState<FieldName extends string>(): FormActionState<FieldNa
         message: "",
         formError: null,
         fieldErrors: {},
+        values: {},
     };
 }
 

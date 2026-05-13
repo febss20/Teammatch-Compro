@@ -97,7 +97,7 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         supabase
             .from("profiles")
             .select(
-                "id, full_name, campus_name, username, bio, public_visibility, show_competition_history, profile_completed_at, verification_status, verified_at",
+                "id, full_name, campus_name, username, bio, email_domain, oauth_avatar_url, manual_avatar_path, avatar_source, avatar_updated_at, public_visibility, show_competition_history, profile_completed_at, verification_status, verified_at",
             )
             .eq("id", profileId)
             .maybeSingle(),

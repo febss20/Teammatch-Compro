@@ -2,9 +2,11 @@ import type {
     CompetitionTypeRecord,
     DashboardMonth,
     ProfileCompetitionHistoryItem,
+    ProfileAvatarSource,
     ProfileRecord,
     SkillOption,
 } from "@/lib/types";
+import { resolveProfileAvatarUrl } from "@/lib/profile/avatar";
 
 interface SkillRow {
     id: string;
@@ -26,6 +28,11 @@ interface ProfileRecordInput {
     campus_name: string | null;
     username: string | null;
     bio: string | null;
+    avatar_source?: string | null;
+    avatar_updated_at?: string | null;
+    email_domain?: string | null;
+    manual_avatar_path?: string | null;
+    oauth_avatar_url?: string | null;
     public_visibility: boolean;
     show_competition_history: boolean;
     profile_completed_at: string | null;
@@ -63,13 +70,25 @@ export function mapCompetitionType(row: CompetitionTypeRow): CompetitionTypeReco
 }
 
 export function mapProfileRecord(input: ProfileRecordInput): ProfileRecord {
+    const avatarSource: ProfileAvatarSource =
+        input.avatar_source === "manual" || input.avatar_source === "oauth" ? input.avatar_source : "none";
+
     return {
         id: input.id,
         email: input.email,
+        avatarSource,
+        avatarUpdatedAt: input.avatar_updated_at ?? null,
+        avatarUrl: resolveProfileAvatarUrl({
+            manualAvatarPath: input.manual_avatar_path ?? null,
+            oauthAvatarUrl: input.oauth_avatar_url ?? null,
+        }),
         fullName: input.full_name,
         campusName: input.campus_name,
         username: input.username,
         bio: input.bio,
+        emailDomain: input.email_domain ?? null,
+        manualAvatarPath: input.manual_avatar_path ?? null,
+        oauthAvatarUrl: input.oauth_avatar_url ?? null,
         visibility: input.public_visibility ? "public" : "private",
         showCompetitionHistory: input.show_competition_history,
         profileCompletedAt: input.profile_completed_at,

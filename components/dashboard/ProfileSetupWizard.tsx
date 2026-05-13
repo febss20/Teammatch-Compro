@@ -4,8 +4,9 @@ import { useActionState, useState, useEffect, useMemo } from "react";
 import { completeProfileStepOne, completeProfileStepThree, completeProfileStepTwo } from "@/app/(dashboard)/dashboard/actions";
 import { profileStepOneInitialState, profileStepThreeInitialState, profileStepTwoInitialState } from "@/lib/forms";
 import { dashboardMonthLabels } from "@/lib/platform";
+import { getStringArrayFormValue, getStringFormValue } from "@/lib/shared/form-values";
 import { ChipInput } from "@/components/dashboard/ChipInput";
-import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
+import type { CompetitionTypeRecord, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface ProfileSetupWizardProps {
     competitionTypes: CompetitionTypeRecord[];
@@ -49,6 +50,14 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
     );
 
     const selectedMonths = useMemo(() => new Set(profile?.availableMonths ?? []), [profile?.availableMonths]);
+    const submittedSkillIds = getStringArrayFormValue(stepTwoState.values, "skills");
+    const submittedCompetitionIds = getStringArrayFormValue(stepTwoState.values, "competition_types");
+    const submittedCustomSkills = getStringArrayFormValue(stepTwoState.values, "custom_skills");
+    const submittedCustomCompetitions = getStringArrayFormValue(stepTwoState.values, "custom_competition_types");
+    const submittedAvailableMonths = getStringArrayFormValue(stepThreeState.values, "available_months");
+    const stepTwoSkillIds = submittedSkillIds ? new Set(submittedSkillIds) : savedTaxonomySkillIds;
+    const stepTwoCompetitionIds = submittedCompetitionIds ? new Set(submittedCompetitionIds) : savedTaxonomyCompetitionIds;
+    const stepThreeMonths = new Set(submittedAvailableMonths ?? Array.from(selectedMonths));
 
     const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
     const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] =
@@ -131,7 +140,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="full_name"
                                     name="full_name"
                                     className="brutal-input"
-                                    defaultValue={profile?.fullName ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "full_name") ?? profile?.fullName ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "full_name") && (
@@ -148,7 +159,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="campus_name"
                                     name="campus_name"
                                     className="brutal-input"
-                                    defaultValue={profile?.campusName ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "campus_name") ?? profile?.campusName ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "campus_name") && (
@@ -165,7 +178,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="username"
                                     name="username"
                                     className="brutal-input"
-                                    defaultValue={profile?.username ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "username") ?? profile?.username ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "username") && (
@@ -183,7 +198,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     name="bio"
                                     rows={4}
                                     className="brutal-textarea"
-                                    defaultValue={profile?.bio ?? ""}
+                                    defaultValue={getStringFormValue(stepOneState.values, "bio") ?? profile?.bio ?? ""}
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "bio") && (
@@ -226,7 +241,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                     type="checkbox"
                                                     name="skills"
                                                     value={skill.id}
-                                                    defaultChecked={savedTaxonomySkillIds.has(skill.id)}
+                                                    defaultChecked={stepTwoSkillIds.has(skill.id)}
                                                     onChange={(e) => {
                                                         const newSet = new Set(selectedTaxonomySkillIds);
                                                         if (e.target.checked) {
@@ -266,7 +281,8 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                         maxItems={5}
                                         currentCount={selectedTaxonomySkillIds.size}
                                         disabled={stepTwoPending}
-                                        defaultItems={customSkills.map((s) => s.label)}
+                                        defaultItems={submittedCustomSkills ?? customSkills.map((s) => s.label)}
+                                        errorMessage={firstError(stepTwoState.fieldErrors, "custom_skills")}
                                         onItemsChange={(items) => setCustomSkillsCount(items.length)}
                                         helperText="Masukkan skill yang tidak ada di daftar pilihan."
                                     />
@@ -296,7 +312,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                     type="checkbox"
                                                     name="competition_types"
                                                     value={competitionType.id}
-                                                    defaultChecked={savedTaxonomyCompetitionIds.has(competitionType.id)}
+                                                    defaultChecked={stepTwoCompetitionIds.has(competitionType.id)}
                                                     onChange={(e) => {
                                                         const newSet = new Set(selectedTaxonomyCompetitionIds);
                                                         if (e.target.checked) {
@@ -333,7 +349,8 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                         maxItems={5}
                                         currentCount={selectedTaxonomyCompetitionIds.size}
                                         disabled={stepTwoPending}
-                                        defaultItems={customCompetitions.map((c) => c.label)}
+                                        defaultItems={submittedCustomCompetitions ?? customCompetitions.map((c) => c.label)}
+                                        errorMessage={firstError(stepTwoState.fieldErrors, "custom_competition_types")}
                                         onItemsChange={(items) => setCustomCompetitionsCount(items.length)}
                                         helperText="Masukkan jenis lomba yang tidak ada di daftar pilihan."
                                     />
@@ -379,7 +396,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                 type="checkbox"
                                                 name="available_months"
                                                 value={value}
-                                                defaultChecked={selectedMonths.has(value as DashboardMonth)}
+                                                defaultChecked={stepThreeMonths.has(value)}
                                                 disabled={stepThreePending}
                                             />
                                             <span className="display-font text-xl leading-none">{label}</span>
@@ -404,9 +421,18 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     min={1}
                                     max={80}
                                     className="brutal-input"
-                                    defaultValue={profile?.hoursPerWeek ?? 8}
+                                    defaultValue={
+                                        getStringFormValue(stepThreeState.values, "hours_per_week") ??
+                                        profile?.hoursPerWeek ??
+                                        8
+                                    }
                                     disabled={stepThreePending}
                                 />
+                                {firstError(stepThreeState.fieldErrors, "hours_per_week") && (
+                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                        {firstError(stepThreeState.fieldErrors, "hours_per_week")}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
@@ -415,24 +441,41 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     <select
                                         name="public_visibility"
                                         className="brutal-select"
-                                        defaultValue={profile?.visibility ?? "public"}
+                                        defaultValue={
+                                            getStringFormValue(stepThreeState.values, "public_visibility") ??
+                                            profile?.visibility ??
+                                            "public"
+                                        }
                                         disabled={stepThreePending}
                                     >
                                         <option value="public">Publik</option>
                                         <option value="private">Privat</option>
                                     </select>
+                                    {firstError(stepThreeState.fieldErrors, "public_visibility") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(stepThreeState.fieldErrors, "public_visibility")}
+                                        </p>
+                                    )}
                                 </label>
                                 <label className="brutal-panel-soft grid gap-3 p-4">
                                     <span className="brutal-label">Riwayat Lomba</span>
                                     <select
                                         name="show_competition_history"
                                         className="brutal-select"
-                                        defaultValue={profile?.showCompetitionHistory ? "true" : "false"}
+                                        defaultValue={
+                                            getStringFormValue(stepThreeState.values, "show_competition_history") ??
+                                            (profile?.showCompetitionHistory ? "true" : "false")
+                                        }
                                         disabled={stepThreePending}
                                     >
                                         <option value="true">Tampilkan</option>
                                         <option value="false">Sembunyikan</option>
                                     </select>
+                                    {firstError(stepThreeState.fieldErrors, "show_competition_history") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(stepThreeState.fieldErrors, "show_competition_history")}
+                                        </p>
+                                    )}
                                 </label>
                             </div>
                         </div>

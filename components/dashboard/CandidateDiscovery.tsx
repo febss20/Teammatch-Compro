@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { saveCandidate, unsaveCandidate } from "@/app/(dashboard)/dashboard/actions";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import type { CandidateRecord, CompetitionTypeRecord, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface CandidateDiscoveryProps {
@@ -17,6 +19,16 @@ interface CandidateDiscoveryProps {
 
 function firstParam(value: string | string[] | undefined) {
     return Array.isArray(value) ? value[0] : value;
+}
+
+function getProfileInitials(profile: ProfileRecord): string {
+    const source = profile.fullName ?? profile.username ?? "TM";
+    return source
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
 }
 
 export default function CandidateDiscovery({
@@ -206,13 +218,30 @@ export default function CandidateDiscovery({
                                     </span>
                                 </div>
 
-                                <div>
-                                    <h3 className="display-font text-4xl leading-none">
-                                        {candidate.profile.fullName ?? candidate.profile.username ?? "Kandidat"}
-                                    </h3>
-                                    <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
-                                        {candidate.profile.bio ?? "Bio belum tersedia."}
-                                    </p>
+                                <div className="flex gap-4">
+                                    <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[var(--tm-line)] bg-[var(--tm-paper)]">
+                                        {candidate.profile.avatarUrl ? (
+                                            <Image
+                                                src={candidate.profile.avatarUrl}
+                                                alt=""
+                                                width={64}
+                                                height={64}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="display-font text-2xl leading-none">
+                                                {getProfileInitials(candidate.profile) || "TM"}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="display-font text-4xl leading-none">
+                                            {candidate.profile.fullName ?? candidate.profile.username ?? "Kandidat"}
+                                        </h3>
+                                        <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
+                                            {candidate.profile.bio ?? "Bio belum tersedia."}
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
@@ -268,16 +297,20 @@ export default function CandidateDiscovery({
                                 {candidate.savedByViewer ? (
                                     <form action={unsaveCandidate}>
                                         <input type="hidden" name="target_profile_id" value={candidate.profile.id} />
-                                        <button type="submit" className="brutal-button-secondary w-full">
-                                            Hapus simpan
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button-secondary w-full"
+                                            idleLabel="Hapus simpan"
+                                            pendingLabel="Menghapus..."
+                                        />
                                     </form>
                                 ) : (
                                     <form action={saveCandidate}>
                                         <input type="hidden" name="target_profile_id" value={candidate.profile.id} />
-                                        <button type="submit" className="brutal-button-secondary w-full">
-                                            Simpan kandidat
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button-secondary w-full"
+                                            idleLabel="Simpan kandidat"
+                                            pendingLabel="Menyimpan..."
+                                        />
                                     </form>
                                 )}
                                 <Link

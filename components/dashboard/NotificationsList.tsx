@@ -1,6 +1,7 @@
 "use client";
 
 import { markNotificationRead } from "@/app/(dashboard)/dashboard/actions";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import { notificationCategoryLabels } from "@/lib/platform";
 import type { NotificationRecord } from "@/lib/types";
 
@@ -39,9 +40,11 @@ export default function NotificationsList({ notifications, unreadCount }: Notifi
                         {!notification.isRead && (
                             <form action={markNotificationRead}>
                                 <input type="hidden" name="notification_id" value={notification.id} />
-                                <button type="submit" className="brutal-button">
-                                    Tandai dibaca
-                                </button>
+                                <PendingSubmitButton
+                                    className="brutal-button"
+                                    idleLabel="Tandai dibaca"
+                                    pendingLabel="Menandai..."
+                                />
                             </form>
                         )}
                     </div>

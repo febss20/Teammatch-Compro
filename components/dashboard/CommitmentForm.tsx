@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { confirmTeamCommitment } from "@/app/(dashboard)/dashboard/actions";
 import { commitmentInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
+import { getStringFormValue } from "@/lib/shared/form-values";
 
 export default function CommitmentForm({ defaultHours, teamMemberId }: { defaultHours: number; teamMemberId: string }) {
     const [state, formAction, pending] = useActionState(confirmTeamCommitment, commitmentInitialState);
@@ -22,10 +24,15 @@ export default function CommitmentForm({ defaultHours, teamMemberId }: { default
                     type="number"
                     min={1}
                     max={80}
-                    defaultValue={defaultHours}
+                    defaultValue={getStringFormValue(state.values, "hours_per_week") ?? defaultHours}
                     className="brutal-input"
                     disabled={pending}
                 />
+                {getFirstFieldError(state.fieldErrors, "hours_per_week") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "hours_per_week")}
+                    </p>
+                )}
             </div>
             <button type="submit" disabled={pending} className="brutal-button">
                 {pending ? "Mengonfirmasi..." : "Konfirmasi Komitmen"}

@@ -31,9 +31,14 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 UNSPLASH_ACCESS_KEY=
+RATE_LIMIT_SECRET=
+CRON_SECRET=
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
 ```
 
 > Dapatkan Unsplash Access Key gratis di [unsplash.com/developers](https://unsplash.com/developers).
+> Turnstile wajib untuk contact dan register di production. Development boleh berjalan tanpa `TURNSTILE_SECRET_KEY`.
 
 3. Jalankan semua migration Supabase
 

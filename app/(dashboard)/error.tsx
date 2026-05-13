@@ -31,9 +31,7 @@ export default function DashboardErrorPage({ error, reset }: DashboardErrorPageP
                         Kembali ke dashboard
                     </a>
                 </div>
-                <pre className="mt-8 overflow-x-auto rounded-lg border-2 border-[var(--tm-line)] bg-[var(--tm-surface-2)] p-4 text-sm text-[var(--tm-muted)]">
-                    {error.message}
-                </pre>
+                {error.digest ? <p className="mt-8 text-sm text-[var(--tm-muted)]">Kode error: {error.digest}</p> : null}
             </section>
         </main>
     );

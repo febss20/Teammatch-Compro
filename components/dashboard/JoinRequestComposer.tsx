@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { sendJoinRequest } from "@/app/(dashboard)/dashboard/actions";
 import { joinRequestInitialState } from "@/lib/forms";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
@@ -13,6 +13,9 @@ interface JoinRequestComposerProps {
 
 export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRequestComposerProps) {
     const [state, formAction, pending] = useActionState(sendJoinRequest, joinRequestInitialState);
+    const defaultMessage = "Halo, saya tertarik berkolaborasi karena skill saya relevan dan availability saya cukup fleksibel.";
+    const [selectedRole, setSelectedRole] = useState<string>(boardRoleOptions[0]);
+    const [message, setMessage] = useState(defaultMessage);
 
     return (
         <form action={formAction} className="brutal-panel grid gap-4 bg-[var(--tm-paper-strong)] p-5">
@@ -30,7 +33,8 @@ export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRe
                     id="selected_role"
                     name="selected_role"
                     className="brutal-select"
-                    defaultValue={boardRoleOptions[0]}
+                    value={selectedRole}
+                    onChange={(event) => setSelectedRole(event.target.value)}
                     disabled={pending}
                 >
                     {boardRoleOptions.map((role) => (
@@ -55,7 +59,8 @@ export default function JoinRequestComposer({ boardId, targetProfileId }: JoinRe
                     name="message"
                     rows={4}
                     className="brutal-textarea"
-                    defaultValue="Halo, saya tertarik berkolaborasi karena skill saya relevan dan availability saya cukup fleksibel."
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
                     disabled={pending}
                 />
                 <p className="text-sm text-[var(--tm-muted)]">Maksimal 150 karakter.</p>

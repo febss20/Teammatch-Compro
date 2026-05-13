@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { acceptBoardApplication, rejectBoardApplication, saveBoardApplication } from "@/app/(dashboard)/dashboard/actions";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import type { BoardApplicationRecord, CandidateRecord } from "@/lib/types";
 
 interface BoardReviewListProps {
@@ -170,21 +171,23 @@ export default function BoardReviewList({
                         <div className="flex flex-wrap gap-3">
                             <form action={acceptBoardApplication}>
                                 <input type="hidden" name="application_id" value={application.id} />
-                                <button type="submit" className="brutal-button">
-                                    Terima
-                                </button>
+                                <PendingSubmitButton className="brutal-button" idleLabel="Terima" pendingLabel="Memproses..." />
                             </form>
                             <form action={rejectBoardApplication}>
                                 <input type="hidden" name="application_id" value={application.id} />
-                                <button type="submit" className="brutal-button-danger">
-                                    Tolak
-                                </button>
+                                <PendingSubmitButton
+                                    className="brutal-button-danger"
+                                    idleLabel="Tolak"
+                                    pendingLabel="Memproses..."
+                                />
                             </form>
                             <form action={saveBoardApplication}>
                                 <input type="hidden" name="application_id" value={application.id} />
-                                <button type="submit" className="brutal-button-secondary">
-                                    Simpan
-                                </button>
+                                <PendingSubmitButton
+                                    className="brutal-button-secondary"
+                                    idleLabel="Simpan"
+                                    pendingLabel="Menyimpan..."
+                                />
                             </form>
                             {application.teamId && (
                                 <Link href={`/dashboard/teams/${application.teamId}`} className="brutal-button-secondary">

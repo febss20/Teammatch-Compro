@@ -5,12 +5,29 @@ import { requireCompletedProfile, requireUser } from "@/lib/auth";
 import { safeParsePasswordChange } from "@/lib/auth/validation";
 import { passwordChangeInitialState, settingsInitialState } from "@/lib/forms";
 import { markNotificationReadForUser, updateNotificationPreferences } from "@/lib/notifications/service";
+import { logServerError } from "@/lib/security/server-errors";
 import { safeParseSettings } from "@/lib/settings/validation";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { FormActionState, PasswordChangeFieldName, SettingsFieldName } from "@/lib/types";
 import { insertPrivacyAuditEvent } from "@/app/(dashboard)/dashboard/_lib/privacy";
 import { revalidateNotificationPaths, revalidateProfilePaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
+
+function getStringValue(formData: FormData, fieldName: string): string {
+    const value = formData.get(fieldName);
+    return typeof value === "string" ? value : "";
+}
+
+function getSettingsValues(formData: FormData) {
+    return {
+        board_updates: getStringValue(formData, "board_updates"),
+        commitment_updates: getStringValue(formData, "commitment_updates"),
+        public_visibility: getStringValue(formData, "public_visibility"),
+        reminder_updates: getStringValue(formData, "reminder_updates"),
+        request_updates: getStringValue(formData, "request_updates"),
+        show_competition_history: getStringValue(formData, "show_competition_history"),
+    };
+}
 
 export async function logoutAction(): Promise<void> {
     const supabase = await createServerSupabaseClient();
@@ -23,7 +40,7 @@ export async function updatePassword(
     formData: FormData,
 ): Promise<FormActionState<PasswordChangeFieldName>> {
     try {
-        const user = await requireUser();
+        await requireUser();
         const validationResult = safeParsePasswordChange(formData);
 
         if (!validationResult.success) {
@@ -41,7 +58,7 @@ export async function updatePassword(
         });
 
         if (error) {
-            throw new Error(`Gagal memperbarui password akun ${user.id}: ${error.message}`);
+            throw new Error(`Gagal memperbarui password akun: ${error.message}`);
         }
 
         return {
@@ -50,9 +67,10 @@ export async function updatePassword(
             message: "Password berhasil diperbarui.",
         };
     } catch (error) {
+        logServerError({ action: "settings.updatePassword" }, error);
         return {
             ...passwordChangeInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui password.",
+            formError: "Password belum dapat diperbarui saat ini.",
         };
     }
 }
@@ -72,6 +90,8 @@ export async function updateSettings(
     _previousState: FormActionState<SettingsFieldName>,
     formData: FormData,
 ): Promise<FormActionState<SettingsFieldName>> {
+    const values = getSettingsValues(formData);
+
     try {
         const user = await requireUser();
         const validationResult = safeParseSettings(formData);
@@ -81,6 +101,7 @@ export async function updateSettings(
                 ...settingsInitialState,
                 formError: "Periksa kembali pengaturan yang Anda ubah.",
                 fieldErrors: getFieldErrors<SettingsFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -130,9 +151,11 @@ export async function updateSettings(
             message: "Pengaturan berhasil diperbarui.",
         };
     } catch (error) {
+        logServerError({ action: "settings.updateSettings" }, error);
         return {
             ...settingsInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui pengaturan.",
+            formError: "Pengaturan belum dapat diperbarui saat ini.",
+            values,
         };
     }
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BoardApplicationForm from "@/components/dashboard/BoardApplicationForm";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import { closeBoardRecruitment } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getBoardById } from "@/lib/dashboard/data";
@@ -112,9 +113,11 @@ export default async function BoardDetailPage({ params }: { params: Promise<{ id
                             {board.status !== "closed" && (
                                 <form action={closeBoardRecruitment}>
                                     <input type="hidden" name="id" value={board.id} />
-                                    <button type="submit" className="brutal-button-danger w-full">
-                                        Tutup rekrutmen
-                                    </button>
+                                    <PendingSubmitButton
+                                        className="brutal-button-danger w-full"
+                                        idleLabel="Tutup rekrutmen"
+                                        pendingLabel="Menutup..."
+                                    />
                                 </form>
                             )}
                         </div>

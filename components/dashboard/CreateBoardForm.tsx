@@ -592,6 +592,11 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                             {firstError(state.fieldErrors, "slots_json")}
                                         </p>
                                     )}
+                                    {firstError(state.fieldErrors, "required_skills") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "required_skills")}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2">
@@ -614,6 +619,11 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                         <option value="public">Publik</option>
                                         <option value="private">Privat</option>
                                     </select>
+                                    {firstError(state.fieldErrors, "visibility") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "visibility")}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 

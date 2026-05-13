@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { saveTeamResource } from "@/app/(dashboard)/dashboard/actions";
 import { teamResourceInitialState } from "@/lib/forms";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
+import { getStringFormValue } from "@/lib/shared/form-values";
 
 interface TeamResourceFormProps {
     teamId: string;
@@ -28,6 +29,7 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                     name="resource_type"
                     className="brutal-input"
                     placeholder="docs, chat, task-board"
+                    defaultValue={getStringFormValue(state.values, "resource_type") ?? ""}
                     disabled={pending}
                 />
                 {getFirstFieldError(state.fieldErrors, "resource_type") && (
@@ -41,7 +43,14 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                 <label htmlFor="label" className="brutal-label">
                     Label
                 </label>
-                <input id="label" name="label" className="brutal-input" placeholder="Notion Sprint Board" disabled={pending} />
+                <input
+                    id="label"
+                    name="label"
+                    className="brutal-input"
+                    placeholder="Notion Sprint Board"
+                    defaultValue={getStringFormValue(state.values, "label") ?? ""}
+                    disabled={pending}
+                />
                 {getFirstFieldError(state.fieldErrors, "label") && (
                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
                         {getFirstFieldError(state.fieldErrors, "label")}
@@ -53,7 +62,14 @@ export default function TeamResourceForm({ teamId }: TeamResourceFormProps) {
                 <label htmlFor="url" className="brutal-label">
                     URL
                 </label>
-                <input id="url" name="url" className="brutal-input" placeholder="https://..." disabled={pending} />
+                <input
+                    id="url"
+                    name="url"
+                    className="brutal-input"
+                    placeholder="https://..."
+                    defaultValue={getStringFormValue(state.values, "url") ?? ""}
+                    disabled={pending}
+                />
                 {getFirstFieldError(state.fieldErrors, "url") && (
                     <p className="text-sm font-semibold text-[var(--tm-danger)]">
                         {getFirstFieldError(state.fieldErrors, "url")}
