@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { submitTestimonial } from "@/app/(dashboard)/dashboard/actions";
 import { testimonialInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
+import { getStringFormValue } from "@/lib/shared/form-values";
 
 export default function TestimonialForm({
     defaultBody,
@@ -34,7 +36,7 @@ export default function TestimonialForm({
                     id={`rating-${targetProfileId}`}
                     name="rating"
                     className="brutal-select"
-                    defaultValue={String(defaultRating ?? 5)}
+                    defaultValue={getStringFormValue(state.values, "rating") ?? String(defaultRating ?? 5)}
                     disabled={pending}
                 >
                     {[5, 4, 3, 2, 1].map((value) => (
@@ -43,6 +45,11 @@ export default function TestimonialForm({
                         </option>
                     ))}
                 </select>
+                {getFirstFieldError(state.fieldErrors, "rating") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "rating")}
+                    </p>
+                )}
             </div>
             <div className="grid gap-2">
                 <label htmlFor={`body-${targetProfileId}`} className="brutal-label">
@@ -54,9 +61,14 @@ export default function TestimonialForm({
                     rows={3}
                     className="brutal-textarea"
                     placeholder="Tulis pengalaman kerja tim Anda."
-                    defaultValue={defaultBody ?? ""}
+                    defaultValue={getStringFormValue(state.values, "body") ?? defaultBody ?? ""}
                     disabled={pending}
                 />
+                {getFirstFieldError(state.fieldErrors, "body") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "body")}
+                    </p>
+                )}
             </div>
             <button type="submit" disabled={pending} className="brutal-button-secondary">
                 {pending ? "Menyimpan..." : testimonialId ? "Perbarui Testimoni" : "Kirim Testimoni"}

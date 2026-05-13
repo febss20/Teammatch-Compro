@@ -13,8 +13,10 @@ interface BoardApplicationFormProps {
 export default function BoardApplicationForm({ board }: BoardApplicationFormProps) {
     const [state, formAction, pending] = useActionState(applyToBoard, boardApplicationInitialState);
     const defaultSlot = board.slots[0];
+    const defaultMessage = `Halo, saya tertarik bergabung di peran ${defaultSlot?.roleName ?? "ini"} karena skill saya cukup relevan.`;
     const [selectedSlotId, setSelectedSlotId] = useState<string>(defaultSlot?.id ?? "");
     const [selectedRole, setSelectedRole] = useState<string>(defaultSlot?.roleName ?? "");
+    const [message, setMessage] = useState<string>(defaultMessage);
     const selectedSlot = useMemo(
         () => board.slots.find((slot) => slot.id === selectedSlotId) ?? defaultSlot ?? null,
         [board.slots, defaultSlot, selectedSlotId],
@@ -72,6 +74,11 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
                     disabled={pending}
                     onChange={(event) => setSelectedRole(event.target.value)}
                 />
+                {getFirstFieldError(state.fieldErrors, "selected_role") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "selected_role")}
+                    </p>
+                )}
             </div>
 
             <div className="grid gap-2">
@@ -83,10 +90,16 @@ export default function BoardApplicationForm({ board }: BoardApplicationFormProp
                     name="message"
                     rows={4}
                     className="brutal-textarea"
-                    defaultValue={`Halo, saya tertarik bergabung di peran ${defaultSlot?.roleName ?? "ini"} karena skill saya cukup relevan.`}
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
                     disabled={pending}
                 />
                 <p className="text-sm text-[var(--tm-muted)]">Maksimal 200 karakter.</p>
+                {getFirstFieldError(state.fieldErrors, "message") && (
+                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                        {getFirstFieldError(state.fieldErrors, "message")}
+                    </p>
+                )}
             </div>
 
             <div className="brutal-panel-soft p-4">

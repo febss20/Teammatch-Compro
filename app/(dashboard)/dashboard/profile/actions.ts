@@ -10,6 +10,7 @@ import {
     profileStepTwoInitialState,
 } from "@/lib/forms";
 import { ensureNotificationPreferences } from "@/lib/notifications/service";
+import { logServerError } from "@/lib/security/server-errors";
 import {
     safeParseProfileStepOne,
     safeParseProfileStepThree,
@@ -31,10 +32,56 @@ import {
 } from "@/app/(dashboard)/dashboard/_lib/profile-writes";
 import { revalidateProfilePaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
 
+function getStringValue(formData: FormData, fieldName: string): string {
+    const value = formData.get(fieldName);
+    return typeof value === "string" ? value : "";
+}
+
+function getStringArrayValues(formData: FormData, fieldName: string): string[] {
+    return formData.getAll(fieldName).filter((value): value is string => typeof value === "string");
+}
+
+function getProfileStepOneValues(formData: FormData) {
+    return {
+        bio: getStringValue(formData, "bio"),
+        campus_name: getStringValue(formData, "campus_name"),
+        full_name: getStringValue(formData, "full_name"),
+        username: getStringValue(formData, "username"),
+    };
+}
+
+function getProfileStepTwoValues(formData: FormData) {
+    return {
+        competition_types: getStringArrayValues(formData, "competition_types"),
+        custom_competition_types: getStringArrayValues(formData, "custom_competition_types"),
+        custom_skills: getStringArrayValues(formData, "custom_skills"),
+        skills: getStringArrayValues(formData, "skills"),
+    };
+}
+
+function getProfileStepThreeValues(formData: FormData) {
+    return {
+        available_months: getStringArrayValues(formData, "available_months"),
+        hours_per_week: getStringValue(formData, "hours_per_week"),
+        public_visibility: getStringValue(formData, "public_visibility"),
+        show_competition_history: getStringValue(formData, "show_competition_history") || "false",
+    };
+}
+
+function getProfileValues(formData: FormData) {
+    return {
+        ...getProfileStepOneValues(formData),
+        ...getProfileStepTwoValues(formData),
+        ...getProfileStepThreeValues(formData),
+    };
+}
+
 export async function completeProfileStepOne(
     _previousState: FormActionState<ProfileStepOneFieldName>,
     formData: FormData,
 ): Promise<FormActionState<ProfileStepOneFieldName>> {
+    const values = getProfileStepOneValues(formData);
+
     try {
         const user = await requireUser();
         const validationResult = safeParseProfileStepOne(formData);
@@ -44,6 +91,7 @@ export async function completeProfileStepOne(
                 ...profileStepOneInitialState,
                 formError: "Periksa kembali data identitas Anda.",
                 fieldErrors: getFieldErrors<ProfileStepOneFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -56,9 +104,11 @@ export async function completeProfileStepOne(
             message: "Identitas dasar berhasil disimpan.",
         };
     } catch (error) {
+        logServerError({ action: "profile.completeStepOne" }, error);
         return {
             ...profileStepOneInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan identitas profil.",
+            formError: "Identitas profil belum dapat disimpan saat ini.",
+            values,
         };
     }
 }
@@ -67,6 +117,8 @@ export async function completeProfileStepTwo(
     _previousState: FormActionState<ProfileStepTwoFieldName>,
     formData: FormData,
 ): Promise<FormActionState<ProfileStepTwoFieldName>> {
+    const values = getProfileStepTwoValues(formData);
+
     try {
         const user = await requireUser();
         const validationResult = safeParseProfileStepTwo(formData);
@@ -76,6 +128,7 @@ export async function completeProfileStepTwo(
                 ...profileStepTwoInitialState,
                 formError: "Pilih skill dan minat lomba yang masih valid.",
                 fieldErrors: getFieldErrors<ProfileStepTwoFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -88,9 +141,11 @@ export async function completeProfileStepTwo(
             message: "Skill dan minat lomba berhasil disimpan.",
         };
     } catch (error) {
+        logServerError({ action: "profile.completeStepTwo" }, error);
         return {
             ...profileStepTwoInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan skill profil.",
+            formError: "Skill profil belum dapat disimpan saat ini.",
+            values,
         };
     }
 }
@@ -99,6 +154,8 @@ export async function completeProfileStepThree(
     _previousState: FormActionState<ProfileStepThreeFieldName>,
     formData: FormData,
 ): Promise<FormActionState<ProfileStepThreeFieldName>> {
+    const values = getProfileStepThreeValues(formData);
+
     try {
         const user = await requireUser();
         const validationResult = safeParseProfileStepThree(formData);
@@ -108,6 +165,7 @@ export async function completeProfileStepThree(
                 ...profileStepThreeInitialState,
                 formError: "Periksa kembali availability dan pengaturan privasi Anda.",
                 fieldErrors: getFieldErrors<ProfileStepThreeFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -120,9 +178,11 @@ export async function completeProfileStepThree(
             throw error;
         }
 
+        logServerError({ action: "profile.completeStepThree" }, error);
         return {
             ...profileStepThreeInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyelesaikan profil.",
+            formError: "Profil belum dapat diselesaikan saat ini.",
+            values,
         };
     }
 }
@@ -131,6 +191,8 @@ export async function updateProfile(
     _previousState: FormActionState<ProfileFieldName>,
     formData: FormData,
 ): Promise<FormActionState<ProfileFieldName>> {
+    const values = getProfileValues(formData);
+
     try {
         const user = await requireUser();
         const validationResult = safeParseUpdateProfile(formData);
@@ -140,6 +202,7 @@ export async function updateProfile(
                 ...profileInitialState,
                 formError: "Periksa kembali field profil yang belum valid.",
                 fieldErrors: getFieldErrors<ProfileFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -154,9 +217,11 @@ export async function updateProfile(
             message: "Profil berhasil diperbarui.",
         };
     } catch (error) {
+        logServerError({ action: "profile.updateProfile" }, error);
         return {
             ...profileInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui profil.",
+            formError: "Profil belum dapat diperbarui saat ini.",
+            values,
         };
     }
 }

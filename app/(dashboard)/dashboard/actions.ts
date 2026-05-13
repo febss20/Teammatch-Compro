@@ -1,7 +1,5 @@
 "use server";
 
-import { requireUser } from "@/lib/auth";
-import { runDashboardMaintenance } from "@/lib/dashboard/runtime";
 import {
     closeBoardRecruitment as closeBoardRecruitmentAction,
     createCompetitionIdeaBoard as createCompetitionIdeaBoardAction,
@@ -65,12 +63,6 @@ import type { DeleteCompetitionIdeaBoardResult } from "@/app/(dashboard)/dashboa
 
 export async function logoutAction(): Promise<void> {
     return logoutActionImpl();
-}
-
-export async function triggerDashboardMaintenance(): Promise<{ updated: boolean }> {
-    await requireUser();
-    const updated = await runDashboardMaintenance();
-    return { updated };
 }
 
 export async function completeProfileStepOne(

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updatePassword } from "@/app/(dashboard)/dashboard/actions";
 import { passwordChangeInitialState } from "@/lib/forms";
+import { getFirstFieldError } from "@/lib/shared/form-errors";
 
 export default function PasswordChangeForm() {
     const [state, formAction, pending] = useActionState(updatePassword, passwordChangeInitialState);
@@ -30,6 +31,11 @@ export default function PasswordChangeForm() {
                         autoComplete="current-password"
                         disabled={pending}
                     />
+                    {getFirstFieldError(state.fieldErrors, "current_password") && (
+                        <span className="text-sm font-semibold text-[var(--tm-danger)]">
+                            {getFirstFieldError(state.fieldErrors, "current_password")}
+                        </span>
+                    )}
                 </label>
                 <label className="grid gap-2">
                     <span className="brutal-label">Password Baru</span>
@@ -40,6 +46,11 @@ export default function PasswordChangeForm() {
                         autoComplete="new-password"
                         disabled={pending}
                     />
+                    {getFirstFieldError(state.fieldErrors, "new_password") && (
+                        <span className="text-sm font-semibold text-[var(--tm-danger)]">
+                            {getFirstFieldError(state.fieldErrors, "new_password")}
+                        </span>
+                    )}
                 </label>
                 <label className="grid gap-2">
                     <span className="brutal-label">Konfirmasi Password Baru</span>
@@ -50,6 +61,11 @@ export default function PasswordChangeForm() {
                         autoComplete="new-password"
                         disabled={pending}
                     />
+                    {getFirstFieldError(state.fieldErrors, "confirm_new_password") && (
+                        <span className="text-sm font-semibold text-[var(--tm-danger)]">
+                            {getFirstFieldError(state.fieldErrors, "confirm_new_password")}
+                        </span>
+                    )}
                 </label>
             </div>
 

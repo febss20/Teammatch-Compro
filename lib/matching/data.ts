@@ -46,7 +46,7 @@ export async function getCandidateDiscovery(viewerId: string): Promise<{
             supabase
                 .from("profiles")
                 .select(
-                    "id, full_name, campus_name, username, bio, public_visibility, show_competition_history, profile_completed_at, verification_status, verified_at",
+                    "id, full_name, campus_name, username, bio, email_domain, oauth_avatar_url, manual_avatar_path, avatar_source, avatar_updated_at, public_visibility, show_competition_history, profile_completed_at, verification_status, verified_at",
                 )
                 .eq("public_visibility", true)
                 .neq("id", viewerId),

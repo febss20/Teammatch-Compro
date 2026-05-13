@@ -6,6 +6,7 @@ import TeamResourceForm from "@/components/dashboard/TeamResourceForm";
 import TeamRenameForm from "@/components/dashboard/TeamRenameForm";
 import TeamResultForm from "@/components/dashboard/TeamResultForm";
 import TestimonialForm from "@/components/dashboard/TestimonialForm";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import { reopenExpiredSlot, sendCommitmentReminder } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import {
@@ -228,17 +229,21 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                                 <div className="grid gap-3">
                                                     <form action={sendCommitmentReminder}>
                                                         <input type="hidden" name="team_member_id" value={member.id} />
-                                                        <button type="submit" className="brutal-button-secondary w-full">
-                                                            Kirim reminder
-                                                        </button>
+                                                        <PendingSubmitButton
+                                                            className="brutal-button-secondary w-full"
+                                                            idleLabel="Kirim reminder"
+                                                            pendingLabel="Mengirim..."
+                                                        />
                                                     </form>
 
                                                     {isExpired && (
                                                         <form action={reopenExpiredSlot}>
                                                             <input type="hidden" name="team_member_id" value={member.id} />
-                                                            <button type="submit" className="brutal-button-danger w-full">
-                                                                Buka ulang slot
-                                                            </button>
+                                                            <PendingSubmitButton
+                                                                className="brutal-button-danger w-full"
+                                                                idleLabel="Buka ulang slot"
+                                                                pendingLabel="Memproses..."
+                                                            />
                                                         </form>
                                                     )}
                                                 </div>

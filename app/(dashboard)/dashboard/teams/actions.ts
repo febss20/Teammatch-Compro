@@ -9,6 +9,8 @@ import {
     testimonialInitialState,
 } from "@/lib/forms";
 import { sendServerNotification } from "@/lib/notifications/service";
+import { assertRateLimit, RateLimitError } from "@/lib/security/rate-limit";
+import { logServerError, PublicActionError } from "@/lib/security/server-errors";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -34,12 +36,60 @@ import {
 } from "@/app/(dashboard)/dashboard/_lib/revalidation";
 import { insertTeamActivityEvent } from "@/app/(dashboard)/dashboard/_lib/team-writes";
 
+function getStringValue(formData: FormData, fieldName: string): string {
+    const value = formData.get(fieldName);
+    return typeof value === "string" ? value : "";
+}
+
+function getCommitmentValues(formData: FormData) {
+    return {
+        hours_per_week: getStringValue(formData, "hours_per_week"),
+        team_member_id: getStringValue(formData, "team_member_id"),
+    };
+}
+
+function getTeamRenameValues(formData: FormData) {
+    return {
+        team_id: getStringValue(formData, "team_id"),
+        team_name: getStringValue(formData, "team_name"),
+    };
+}
+
+function getTeamResourceValues(formData: FormData) {
+    return {
+        label: getStringValue(formData, "label"),
+        resource_type: getStringValue(formData, "resource_type"),
+        team_id: getStringValue(formData, "team_id"),
+        url: getStringValue(formData, "url"),
+    };
+}
+
+function getTeamResultValues(formData: FormData) {
+    return {
+        competition_ended_at: getStringValue(formData, "competition_ended_at"),
+        result_summary: getStringValue(formData, "result_summary"),
+        team_id: getStringValue(formData, "team_id"),
+    };
+}
+
+function getTestimonialValues(formData: FormData) {
+    return {
+        body: getStringValue(formData, "body"),
+        rating: getStringValue(formData, "rating"),
+        target_profile_id: getStringValue(formData, "target_profile_id"),
+        team_id: getStringValue(formData, "team_id"),
+        testimonial_id: getStringValue(formData, "testimonial_id"),
+    };
+}
+
 export async function confirmTeamCommitment(
     _previousState: FormActionState<CommitmentFieldName>,
     formData: FormData,
 ): Promise<FormActionState<CommitmentFieldName>> {
+    const values = getCommitmentValues(formData);
+
     try {
-        const { user } = await requireCompletedProfile();
+        await requireCompletedProfile();
         const validationResult = safeParseCommitment(formData);
 
         if (!validationResult.success) {
@@ -47,97 +97,35 @@ export async function confirmTeamCommitment(
                 ...commitmentInitialState,
                 formError: "Periksa kembali konfirmasi komitmen Anda.",
                 fieldErrors: getFieldErrors<CommitmentFieldName>(validationResult.error),
+                values,
             };
         }
 
         const supabase = await createServerSupabaseClient();
-        const { data: teamMember, error: memberError } = await supabase
-            .from("team_members")
-            .select("id, profile_id, team_id")
-            .eq("id", validationResult.data.team_member_id)
-            .eq("profile_id", user.id)
-            .maybeSingle();
-
-        if (memberError) {
-            throw new Error(`Gagal memuat anggota tim: ${memberError.message}`);
-        }
-        if (!teamMember) {
-            throw new Error("Anda tidak memiliki akses untuk mengonfirmasi komitmen ini.");
-        }
-
-        const now = new Date().toISOString();
-        const [commitmentResult, memberResult] = await Promise.all([
-            supabase
-                .from("team_commitments")
-                .update({
-                    hours_per_week: validationResult.data.hours_per_week,
-                    confirmed_at: now,
-                    updated_at: now,
-                })
-                .eq("team_member_id", teamMember.id)
-                .select("id")
-                .maybeSingle(),
-            supabase
-                .from("team_members")
-                .update({
-                    confirmation_status: "confirmed",
-                    updated_at: now,
-                })
-                .eq("id", teamMember.id)
-                .eq("profile_id", user.id)
-                .select("id, team_id, confirmation_status")
-                .maybeSingle(),
-        ]);
-
-        if (commitmentResult.error) {
-            throw new Error(`Gagal menyimpan komitmen: ${commitmentResult.error.message}`);
-        }
-        if (memberResult.error) {
-            throw new Error(`Gagal memperbarui status anggota tim: ${memberResult.error.message}`);
-        }
-        if (!commitmentResult.data) {
-            throw new Error("Row komitmen tidak ditemukan atau tidak bisa diperbarui.");
-        }
-        if (!memberResult.data) {
-            throw new Error("Status anggota tim tidak berubah. Periksa policy RLS team_members.");
-        }
-        if (memberResult.data.confirmation_status !== "confirmed") {
-            throw new Error("Status anggota tim gagal berubah ke confirmed.");
-        }
-
-        const { data: allMembers, error: membersError } = await supabase
-            .from("team_members")
-            .select("id, confirmation_status, profile_id")
-            .eq("team_id", teamMember.team_id);
-
-        if (membersError) {
-            throw new Error(`Gagal memeriksa status tim: ${membersError.message}`);
-        }
-
-        const allConfirmed = (allMembers ?? []).every((member) => member.confirmation_status === "confirmed");
-
-        if (allConfirmed) {
-            const { data: teamRow } = await supabase
-                .from("teams")
-                .select("creator_id, name")
-                .eq("id", teamMember.team_id)
-                .single();
-            if (teamRow) {
-                await sendServerNotification({
-                    type: "team_all_members_confirmed",
-                    teamId: teamMember.team_id,
-                    teamName: teamRow.name,
-                    userId: teamRow.creator_id,
-                });
-            }
-        }
-
-        await insertTeamActivityEvent(teamMember.team_id, user.id, "commitment_confirmed", {
-            team_member_id: teamMember.id,
-            hours_per_week: validationResult.data.hours_per_week,
+        const { data, error } = await supabase.rpc("confirm_team_commitment", {
+            p_hours_per_week: validationResult.data.hours_per_week,
+            p_team_member_id: validationResult.data.team_member_id,
         });
 
-        revalidateTeamPaths({ teamId: teamMember.team_id, boardId: null });
+        if (error) {
+            throw new Error(`Gagal menyimpan komitmen: ${error.message}`);
+        }
+
+        const result = data?.[0];
+        if (!result) {
+            throw new Error("Komitmen berhasil diproses tanpa respons tim.");
+        }
+
+        if (result.all_members_confirmed) {
+            await sendServerNotification({
+                type: "team_all_members_confirmed",
+                teamId: result.confirmed_team_id,
+                teamName: result.confirmed_team_name,
+                userId: result.creator_user_id,
+            });
+        }
+
+        revalidateTeamPaths({ teamId: result.confirmed_team_id, boardId: null });
 
         return {
             ...commitmentInitialState,
@@ -145,9 +133,11 @@ export async function confirmTeamCommitment(
             message: "Komitmen berhasil dikonfirmasi.",
         };
     } catch (error) {
+        logServerError({ action: "teams.confirmTeamCommitment" }, error);
         return {
             ...commitmentInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat mengonfirmasi komitmen.",
+            formError: "Komitmen belum dapat dikonfirmasi saat ini.",
+            values,
         };
     }
 }
@@ -160,65 +150,35 @@ export async function sendCommitmentReminder(formData: FormData): Promise<void> 
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: rawMemberRow, error: memberError } = await supabase
-        .from("team_members")
-        .select("id, team_id, profile_id, role_name, teams!inner(creator_id, name), team_commitments(id, last_reminded_at)")
-        .eq("id", teamMemberId)
-        .eq("teams.creator_id", user.id)
-        .maybeSingle();
+    await assertRateLimit({
+        limitCount: 60,
+        scope: "notification_action",
+        subject: `user:${user.id}`,
+        windowSeconds: 3600,
+    });
 
-    if (memberError) {
-        throw new Error(`Gagal memuat anggota tim: ${memberError.message}`);
+    const { data, error } = await supabase.rpc("send_commitment_reminder", {
+        p_team_member_id: teamMemberId,
+    });
+
+    if (error) {
+        logServerError({ action: "teams.sendCommitmentReminder", userId: user.id }, error);
+        throw new Error("Reminder belum dapat dikirim saat ini.");
     }
-    if (!rawMemberRow) {
+
+    const memberRow = data?.[0];
+    if (!memberRow) {
         throw new Error("Anda tidak memiliki akses untuk mengirim reminder ini.");
-    }
-
-    const memberRow = rawMemberRow as unknown as {
-        id: string;
-        profile_id: string;
-        role_name: string;
-        team_id: string;
-        teams: { creator_id: string; name: string };
-        team_commitments: { id: string; last_reminded_at: string | null } | null;
-    };
-    const commitment = memberRow.team_commitments;
-    if (!commitment) {
-        throw new Error("Komitmen untuk anggota ini belum tersedia.");
-    }
-
-    if (commitment.last_reminded_at) {
-        const lastRemindedAt = new Date(commitment.last_reminded_at).getTime();
-        if (Date.now() - lastRemindedAt < 60 * 60 * 1000) {
-            throw new Error("Reminder manual hanya dapat dikirim maksimal 1 kali per jam.");
-        }
-    }
-
-    const now = new Date().toISOString();
-    const { error: updateError } = await supabase
-        .from("team_commitments")
-        .update({
-            last_reminded_at: now,
-            updated_at: now,
-        })
-        .eq("id", commitment.id);
-
-    if (updateError) {
-        throw new Error(`Gagal memperbarui timestamp reminder: ${updateError.message}`);
     }
 
     await sendServerNotification({
         type: "team_commitment_reminder",
-        teamId: memberRow.team_id,
-        teamName: memberRow.teams.name,
-        userId: memberRow.profile_id,
-    });
-    await insertTeamActivityEvent(memberRow.team_id, user.id, "commitment_reminder_sent", {
-        team_member_id: memberRow.id,
-        role_name: memberRow.role_name,
+        teamId: memberRow.reminder_team_id,
+        teamName: memberRow.reminder_team_name,
+        userId: memberRow.reminder_profile_id,
     });
 
-    revalidateTeamPaths({ teamId: memberRow.team_id, boardId: null });
+    revalidateTeamPaths({ teamId: memberRow.reminder_team_id, boardId: null });
 }
 
 export async function reopenExpiredSlot(formData: FormData): Promise<void> {
@@ -229,87 +189,37 @@ export async function reopenExpiredSlot(formData: FormData): Promise<void> {
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: rawMemberRow, error: memberError } = await supabase
-        .from("team_members")
-        .select(
-            "id, team_id, profile_id, role_name, teams!inner(id, creator_id, board_id, name), team_commitments(id, deadline_at, confirmed_at)",
-        )
-        .eq("id", teamMemberId)
-        .eq("teams.creator_id", user.id)
-        .maybeSingle();
+    const { data, error } = await supabase.rpc("reopen_expired_slot", {
+        p_team_member_id: teamMemberId,
+    });
 
-    if (memberError) {
-        throw new Error(`Gagal memuat anggota tim: ${memberError.message}`);
+    if (error) {
+        logServerError({ action: "teams.reopenExpiredSlot", userId: user.id }, error);
+        throw new Error("Slot belum dapat dibuka ulang saat ini.");
     }
-    if (!rawMemberRow) {
+
+    const memberRow = data?.[0];
+    if (!memberRow) {
         throw new Error("Anda tidak memiliki akses untuk membuka ulang slot ini.");
-    }
-
-    const memberRow = rawMemberRow as unknown as {
-        id: string;
-        profile_id: string;
-        role_name: string;
-        team_id: string;
-        teams: { id: string; creator_id: string; board_id: string | null; name: string };
-        team_commitments: { id: string; deadline_at: string; confirmed_at: string | null } | null;
-    };
-    const commitment = memberRow.team_commitments;
-    if (!commitment) {
-        throw new Error("Komitmen anggota ini tidak ditemukan.");
-    }
-    if (commitment.confirmed_at) {
-        throw new Error("Anggota ini sudah mengonfirmasi komitmen.");
-    }
-    if (new Date(commitment.deadline_at).getTime() > Date.now()) {
-        throw new Error("Slot belum melewati deadline 48 jam.");
-    }
-
-    const now = new Date().toISOString();
-    const [memberUpdate, boardUpdate] = await Promise.all([
-        supabase
-            .from("team_members")
-            .update({
-                confirmation_status: "expired",
-                updated_at: now,
-            })
-            .eq("id", memberRow.id),
-        memberRow.teams.board_id
-            ? supabase
-                  .from("competition_idea_boards")
-                  .update({
-                      status: "open",
-                      updated_at: now,
-                  })
-                  .eq("id", memberRow.teams.board_id)
-            : Promise.resolve({ error: null }),
-    ]);
-
-    if (memberUpdate.error) {
-        throw new Error(`Gagal menandai anggota sebagai expired: ${memberUpdate.error.message}`);
-    }
-    if (boardUpdate.error) {
-        throw new Error(`Gagal membuka ulang status board: ${boardUpdate.error.message}`);
     }
 
     await sendServerNotification({
         type: "team_slot_reopened",
-        roleName: memberRow.role_name,
-        teamId: memberRow.team_id,
-        teamName: memberRow.teams.name,
+        roleName: memberRow.reopened_role_name,
+        teamId: memberRow.reopened_team_id,
+        teamName: memberRow.reopened_team_name,
         userId: user.id,
     });
-    await insertTeamActivityEvent(memberRow.team_id, user.id, "slot_reopened", {
-        team_member_id: memberRow.id,
-        role_name: memberRow.role_name,
-    });
 
-    revalidateTeamPaths({ teamId: memberRow.team_id, boardId: memberRow.teams.board_id });
+    revalidateTeamPaths({ teamId: memberRow.reopened_team_id, boardId: memberRow.reopened_board_id });
 }
 
 export async function renameTeam(
     _previousState: FormActionState<TeamRenameFieldName>,
     formData: FormData,
 ): Promise<FormActionState<TeamRenameFieldName>> {
+    const values = getTeamRenameValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseTeamRename(formData);
@@ -319,6 +229,7 @@ export async function renameTeam(
                 ...teamRenameInitialState,
                 formError: "Periksa kembali nama tim Anda.",
                 fieldErrors: getFieldErrors<TeamRenameFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -348,9 +259,11 @@ export async function renameTeam(
             message: "Nama tim berhasil diperbarui.",
         };
     } catch (error) {
+        logServerError({ action: "teams.renameTeam" }, error);
         return {
             ...teamRenameInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat mengganti nama tim.",
+            formError: "Nama tim belum dapat diperbarui saat ini.",
+            values,
         };
     }
 }
@@ -359,6 +272,8 @@ export async function saveTeamResource(
     _previousState: FormActionState<TeamResourceFieldName>,
     formData: FormData,
 ): Promise<FormActionState<TeamResourceFieldName>> {
+    const values = getTeamResourceValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseTeamResource(formData);
@@ -368,6 +283,7 @@ export async function saveTeamResource(
                 ...teamResourceInitialState,
                 formError: "Periksa kembali resource tim yang Anda tambahkan.",
                 fieldErrors: getFieldErrors<TeamResourceFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -410,9 +326,11 @@ export async function saveTeamResource(
             message: "Resource tim berhasil ditambahkan.",
         };
     } catch (error) {
+        logServerError({ action: "teams.saveTeamResource" }, error);
         return {
             ...teamResourceInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menambahkan resource tim.",
+            formError: "Resource tim belum dapat ditambahkan saat ini.",
+            values,
         };
     }
 }
@@ -421,6 +339,8 @@ export async function recordCompetitionResult(
     _previousState: FormActionState<TeamResultFieldName>,
     formData: FormData,
 ): Promise<FormActionState<TeamResultFieldName>> {
+    const values = getTeamResultValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseTeamResult(formData);
@@ -430,10 +350,18 @@ export async function recordCompetitionResult(
                 ...teamResultInitialState,
                 formError: "Periksa kembali hasil lomba yang Anda isi.",
                 fieldErrors: getFieldErrors<TeamResultFieldName>(validationResult.error),
+                values,
             };
         }
 
         const supabase = await createServerSupabaseClient();
+        await assertRateLimit({
+            limitCount: 60,
+            scope: "notification_action",
+            subject: `user:${user.id}`,
+            windowSeconds: 3600,
+        });
+
         const { data: rawTeamRow, error: teamError } = await supabase
             .from("teams")
             .select("id, creator_id, name, competition_name")
@@ -477,12 +405,11 @@ export async function recordCompetitionResult(
             revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
             revalidateMatchingPaths({ candidateIds: affectedProfileIds });
             revalidateProfilePaths();
+            logServerError({ action: "teams.recordCompetitionResult.refreshProfileSummaries", userId: user.id }, error);
             return {
                 ...teamResultInitialState,
-                formError:
-                    error instanceof Error
-                        ? `Hasil lomba tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
-                        : "Hasil lomba tersimpan, tetapi snapshot trust belum tersinkron.",
+                formError: "Hasil lomba tersimpan, tetapi snapshot trust belum tersinkron.",
+                values,
             };
         }
 
@@ -492,11 +419,6 @@ export async function recordCompetitionResult(
             teamName: teamRow.name,
             userId: user.id,
         });
-        await insertTeamActivityEvent(teamRow.id, user.id, "competition_result_recorded", {
-            result_summary: validationResult.data.result_summary,
-            competition_ended_at: validationResult.data.competition_ended_at,
-        });
-
         revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
         revalidateMatchingPaths({ candidateIds: affectedProfileIds });
         revalidateProfilePaths();
@@ -507,9 +429,19 @@ export async function recordCompetitionResult(
             message: "Hasil lomba berhasil dicatat.",
         };
     } catch (error) {
+        if (error instanceof RateLimitError || error instanceof PublicActionError) {
+            return {
+                ...teamResultInitialState,
+                formError: error.message,
+                values,
+            };
+        }
+
+        logServerError({ action: "teams.recordCompetitionResult" }, error);
         return {
             ...teamResultInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat mencatat hasil lomba.",
+            formError: "Hasil lomba belum dapat dicatat saat ini.",
+            values,
         };
     }
 }
@@ -518,6 +450,8 @@ export async function submitTestimonial(
     _previousState: FormActionState<TestimonialFieldName>,
     formData: FormData,
 ): Promise<FormActionState<TestimonialFieldName>> {
+    const values = getTestimonialValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseTestimonial(formData);
@@ -527,6 +461,7 @@ export async function submitTestimonial(
                 ...testimonialInitialState,
                 formError: "Periksa kembali testimonial Anda.",
                 fieldErrors: getFieldErrors<TestimonialFieldName>(validationResult.error),
+                values,
             };
         }
 
@@ -573,7 +508,11 @@ export async function submitTestimonial(
             if (existingError) {
                 throw new Error(`Gagal memuat testimonial: ${existingError.message}`);
             }
-            if (existing.locked_at || now.getTime() - new Date(existing.created_at).getTime() > 7 * 24 * 60 * 60 * 1000) {
+            const lockedAt = existing.locked_at ? new Date(existing.locked_at) : null;
+            if (
+                (lockedAt && lockedAt.getTime() <= now.getTime()) ||
+                now.getTime() - new Date(existing.created_at).getTime() > 7 * 24 * 60 * 60 * 1000
+            ) {
                 throw new Error("Testimoni sudah terkunci dan tidak bisa diedit lagi.");
             }
 
@@ -606,12 +545,11 @@ export async function submitTestimonial(
                 revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
                 revalidateMatchingPaths({ candidateIds: [existing.target_profile_id] });
                 revalidateProfilePaths();
+                logServerError({ action: "teams.submitTestimonial.refreshProfileSummaries", userId: user.id }, error);
                 return {
                     ...testimonialInitialState,
-                    formError:
-                        error instanceof Error
-                            ? `Testimoni tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
-                            : "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                    formError: "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                    values,
                 };
             }
         } else {
@@ -634,12 +572,11 @@ export async function submitTestimonial(
                 revalidateTeamPaths({ teamId: validationResult.data.team_id, boardId: null });
                 revalidateMatchingPaths({ candidateIds: [validationResult.data.target_profile_id] });
                 revalidateProfilePaths();
+                logServerError({ action: "teams.submitTestimonial.refreshProfileSummaries", userId: user.id }, error);
                 return {
                     ...testimonialInitialState,
-                    formError:
-                        error instanceof Error
-                            ? `Testimoni tersimpan, tetapi snapshot trust belum tersinkron: ${error.message}`
-                            : "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                    formError: "Testimoni tersimpan, tetapi snapshot trust belum tersinkron.",
+                    values,
                 };
             }
         }
@@ -654,9 +591,19 @@ export async function submitTestimonial(
             message: "Testimoni berhasil disimpan.",
         };
     } catch (error) {
+        if (error instanceof PublicActionError) {
+            return {
+                ...testimonialInitialState,
+                formError: error.message,
+                values,
+            };
+        }
+
+        logServerError({ action: "teams.submitTestimonial" }, error);
         return {
             ...testimonialInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan testimonial.",
+            formError: "Testimoni belum dapat disimpan saat ini.",
+            values,
         };
     }
 }

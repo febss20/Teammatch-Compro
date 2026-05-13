@@ -10,6 +10,7 @@ import {
     type CompetitionIdeaBoardRecord,
 } from "@/lib/types";
 import { boardVisibilityLabels, competitionTypeLabels } from "@/lib/platform";
+import { getStringFormValue } from "@/lib/shared/form-values";
 
 interface RoleSlotInput {
     id: string;
@@ -124,7 +125,13 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                         <label htmlFor="title" className="brutal-label">
                             Judul Ide
                         </label>
-                        <input id="title" name="title" className="brutal-input" defaultValue={board.title} disabled={pending} />
+                        <input
+                            id="title"
+                            name="title"
+                            className="brutal-input"
+                            defaultValue={getStringFormValue(state.values, "title") ?? board.title}
+                            disabled={pending}
+                        />
                         {firstError(state.fieldErrors, "title") && (
                             <p className="text-sm font-semibold text-[var(--tm-danger)]">
                                 {firstError(state.fieldErrors, "title")}
@@ -141,9 +148,14 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             name="summary"
                             rows={3}
                             className="brutal-textarea"
-                            defaultValue={board.summary ?? ""}
+                            defaultValue={getStringFormValue(state.values, "summary") ?? board.summary ?? ""}
                             disabled={pending}
                         />
+                        {firstError(state.fieldErrors, "summary") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "summary")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2">
@@ -164,6 +176,11 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                 </option>
                             ))}
                         </select>
+                        {firstError(state.fieldErrors, "competition_type_select") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "competition_type_select")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2">
@@ -173,7 +190,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                         <select
                             id="status"
                             name="status"
-                            defaultValue={board.status}
+                            defaultValue={getStringFormValue(state.values, "status") ?? board.status}
                             className="brutal-select"
                             disabled={pending}
                         >
@@ -183,6 +200,11 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                 </option>
                             ))}
                         </select>
+                        {firstError(state.fieldErrors, "status") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "status")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2">
@@ -194,9 +216,14 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             name="deadline"
                             type="date"
                             className="brutal-input"
-                            defaultValue={getDateValue(board.deadline)}
+                            defaultValue={getStringFormValue(state.values, "deadline") ?? getDateValue(board.deadline)}
                             disabled={pending}
                         />
+                        {firstError(state.fieldErrors, "deadline") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "deadline")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2">
@@ -206,7 +233,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                         <select
                             id="visibility"
                             name="visibility"
-                            defaultValue={board.visibility}
+                            defaultValue={getStringFormValue(state.values, "visibility") ?? board.visibility}
                             className="brutal-select"
                             disabled={pending}
                         >
@@ -216,6 +243,11 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                 </option>
                             ))}
                         </select>
+                        {firstError(state.fieldErrors, "visibility") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "visibility")}
+                            </p>
+                        )}
                     </div>
 
                     {selectedCompetitionType === "others" && (
@@ -227,9 +259,17 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                                 id="competition_type_other"
                                 name="competition_type_other"
                                 className="brutal-input"
-                                defaultValue={getOtherValue(board.competitionType)}
+                                defaultValue={
+                                    getStringFormValue(state.values, "competition_type_other") ??
+                                    getOtherValue(board.competitionType)
+                                }
                                 disabled={pending}
                             />
+                            {firstError(state.fieldErrors, "competition_type_other") && (
+                                <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                    {firstError(state.fieldErrors, "competition_type_other")}
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -242,9 +282,14 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             name="description"
                             rows={6}
                             className="brutal-textarea"
-                            defaultValue={board.description}
+                            defaultValue={getStringFormValue(state.values, "description") ?? board.description}
                             disabled={pending}
                         />
+                        {firstError(state.fieldErrors, "description") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "description")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-2 md:col-span-2">
@@ -255,9 +300,16 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
                             id="required_skills"
                             name="required_skills"
                             className="brutal-input"
-                            defaultValue={getSkillsValue(board.requiredSkills)}
+                            defaultValue={
+                                getStringFormValue(state.values, "required_skills") ?? getSkillsValue(board.requiredSkills)
+                            }
                             disabled={pending}
                         />
+                        {firstError(state.fieldErrors, "required_skills") && (
+                            <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                {firstError(state.fieldErrors, "required_skills")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-4 md:col-span-2">

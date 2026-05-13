@@ -11,6 +11,7 @@ interface ChipInputProps {
     currentCount?: number;
     disabled?: boolean;
     defaultItems?: string[];
+    errorMessage?: string | null;
     onItemsChange?: (items: string[]) => void;
     helperText?: string;
 }
@@ -23,6 +24,7 @@ export function ChipInput({
     currentCount = 0,
     disabled = false,
     defaultItems = [],
+    errorMessage,
     onItemsChange,
     helperText,
 }: ChipInputProps) {
@@ -134,7 +136,9 @@ export function ChipInput({
                 </div>
             </div>
 
-            {error && <p className="text-sm font-semibold text-[var(--tm-danger)]">{error}</p>}
+            {(error || errorMessage) && (
+                <p className="text-sm font-semibold text-[var(--tm-danger)]">{error ?? errorMessage}</p>
+            )}
             {helperText && <p className="text-sm text-[var(--tm-muted)]">{helperText}</p>}
 
             {/* Hidden inputs for form submission */}

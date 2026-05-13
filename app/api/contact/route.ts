@@ -1,9 +1,27 @@
 import { NextResponse } from "next/server";
+import { assertRateLimit, getClientIpFromRequest, RateLimitError } from "@/lib/security/rate-limit";
+import { logServerError } from "@/lib/security/server-errors";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
 import { contactPayloadSchema } from "@/lib/shared/contact-validation";
 
+interface ContactRequestBody {
+    email?: unknown;
+    message?: unknown;
+    name?: unknown;
+    turnstileToken?: unknown;
+}
+
 export async function POST(request: Request) {
+    const clientIp = getClientIpFromRequest(request);
     try {
-        const body = await request.json();
+        await assertRateLimit({
+            limitCount: 5,
+            scope: "contact",
+            subject: `ip:${clientIp}`,
+            windowSeconds: 600,
+        });
+
+        const body = (await request.json()) as ContactRequestBody;
         const validationResult = contactPayloadSchema.safeParse(body);
 
         if (!validationResult.success) {
@@ -16,7 +34,12 @@ export async function POST(request: Request) {
             );
         }
 
-        console.log("New contact message:", {
+        await verifyTurnstileToken({
+            remoteIp: clientIp,
+            token: typeof body.turnstileToken === "string" ? body.turnstileToken : null,
+        });
+
+        console.log("New contact message", {
             name: validationResult.data.name,
             email: validationResult.data.email,
             message: validationResult.data.message,
@@ -27,7 +50,12 @@ export async function POST(request: Request) {
             success: true,
             message: "Pesan berhasil diterima.",
         });
-    } catch {
-        return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return NextResponse.json({ error: error.message }, { status: 429 });
+        }
+
+        logServerError({ action: "contact.submit", metadata: { clientIp } }, error);
+        return NextResponse.json({ error: "Pesan belum bisa diproses saat ini." }, { status: 400 });
     }
 }
