@@ -35,6 +35,7 @@ export function ChipInput({
 
     const totalItems = currentCount + items.length;
     const canAdd = totalItems < maxItems;
+    const limitMessage = `Maksimal ${maxItems} item. Hapus salah satu untuk menambahkan item lain.`;
 
     const handleAddItem = () => {
         const trimmed = input.trim();
@@ -58,7 +59,7 @@ export function ChipInput({
         }
 
         if (!canAdd) {
-            setError(`Maksimal ${maxItems} item`);
+            setError(limitMessage);
             return;
         }
 
@@ -139,7 +140,10 @@ export function ChipInput({
             {(error || errorMessage) && (
                 <p className="text-sm font-semibold text-[var(--tm-danger)]">{error ?? errorMessage}</p>
             )}
-            {helperText && <p className="text-sm text-[var(--tm-muted)]">{helperText}</p>}
+            {!canAdd && !error && !errorMessage && (
+                <p className="text-sm font-semibold text-[var(--tm-muted)]">{limitMessage}</p>
+            )}
+            {helperText && canAdd && <p className="text-sm text-[var(--tm-muted)]">{helperText}</p>}
 
             {/* Hidden inputs for form submission */}
             {items.map((item, index) => (

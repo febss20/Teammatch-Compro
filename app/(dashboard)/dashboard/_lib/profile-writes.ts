@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 import { insertPrivacyAuditEvent } from "@/app/(dashboard)/dashboard/_lib/privacy";
 
 export async function persistProfileStepOne(
@@ -27,6 +28,17 @@ export async function persistProfileStepTwo(
     userId: string,
     payload: { skills: string[]; custom_skills: string[]; competition_types: string[]; custom_competition_types: string[] },
 ): Promise<void> {
+    const skillTotal = payload.skills.length + payload.custom_skills.length;
+    const competitionTotal = payload.competition_types.length + payload.custom_competition_types.length;
+
+    if (skillTotal < 1 || skillTotal > PROFILE_MAX_SKILLS) {
+        throw new Error(`Total skill profil harus 1 sampai ${PROFILE_MAX_SKILLS}.`);
+    }
+
+    if (competitionTotal < 1 || competitionTotal > PROFILE_MAX_COMPETITION_TYPES) {
+        throw new Error(`Total jenis lomba profil harus 1 sampai ${PROFILE_MAX_COMPETITION_TYPES}.`);
+    }
+
     const supabase = await createServerSupabaseClient();
     const [deleteSkillsResult, deleteCompetitionsResult, deleteCustomSkillsResult, deleteCustomCompetitionsResult] =
         await Promise.all([

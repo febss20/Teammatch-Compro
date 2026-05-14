@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "crypto";
 import { headers } from "next/headers";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export class RateLimitError extends Error {
     constructor(message: string) {
@@ -65,7 +65,7 @@ export async function getClientIpFromHeaders(): Promise<string> {
 }
 
 export async function assertRateLimit(input: RateLimitInput): Promise<void> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const { error } = await supabase.rpc("consume_rate_limit", {
         p_limit_count: input.limitCount,
         p_scope: input.scope,

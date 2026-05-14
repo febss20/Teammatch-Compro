@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 import { dashboardMonthOptions, profileVisibilityOptions } from "@/lib/types";
 import { deduplicateAndNormalize } from "@/lib/profile/normalization";
 
@@ -25,19 +26,27 @@ export const profileStepTwoSchema = z
             .array(z.string().trim().min(2, "Skill minimal 2 karakter.").max(50, "Skill maksimal 50 karakter."))
             .default([])
             .transform(deduplicateAndNormalize),
-        competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).min(1, "Pilih minimal 1 jenis lomba."),
+        competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).default([]),
         custom_competition_types: z
             .array(z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."))
             .default([])
             .transform(deduplicateAndNormalize),
     })
-    .refine((data) => data.skills.length + data.custom_skills.length <= 5, {
-        message: "Total skill tidak boleh lebih dari 5.",
+    .refine((data) => data.skills.length + data.custom_skills.length <= PROFILE_MAX_SKILLS, {
+        message: `Total skill tidak boleh lebih dari ${PROFILE_MAX_SKILLS}.`,
         path: ["skills"],
     })
     .refine((data) => data.skills.length + data.custom_skills.length >= 1, {
         message: "Pilih minimal 1 skill.",
         path: ["skills"],
+    })
+    .refine((data) => data.competition_types.length + data.custom_competition_types.length <= PROFILE_MAX_COMPETITION_TYPES, {
+        message: `Total jenis lomba tidak boleh lebih dari ${PROFILE_MAX_COMPETITION_TYPES}.`,
+        path: ["competition_types"],
+    })
+    .refine((data) => data.competition_types.length + data.custom_competition_types.length >= 1, {
+        message: "Pilih minimal 1 jenis lomba.",
+        path: ["competition_types"],
     });
 
 export const profileStepThreeSchema = z.object({
@@ -65,7 +74,7 @@ export const updateProfileSchema = z
             .array(z.string().trim().min(2, "Skill minimal 2 karakter.").max(50, "Skill maksimal 50 karakter."))
             .default([])
             .transform(deduplicateAndNormalize),
-        competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).min(1, "Pilih minimal 1 jenis lomba."),
+        competition_types: z.array(z.uuid("Jenis lomba tidak valid.")).default([]),
         custom_competition_types: z
             .array(z.string().trim().min(2, "Jenis lomba minimal 2 karakter.").max(50, "Jenis lomba maksimal 50 karakter."))
             .default([])
@@ -77,13 +86,21 @@ export const updateProfileSchema = z
         public_visibility: visibilitySchema,
         show_competition_history: z.union([z.literal("true"), z.literal("false")]).transform((value) => value === "true"),
     })
-    .refine((data) => data.skills.length + data.custom_skills.length <= 5, {
-        message: "Total skill tidak boleh lebih dari 5.",
+    .refine((data) => data.skills.length + data.custom_skills.length <= PROFILE_MAX_SKILLS, {
+        message: `Total skill tidak boleh lebih dari ${PROFILE_MAX_SKILLS}.`,
         path: ["skills"],
     })
     .refine((data) => data.skills.length + data.custom_skills.length >= 1, {
         message: "Pilih minimal 1 skill.",
         path: ["skills"],
+    })
+    .refine((data) => data.competition_types.length + data.custom_competition_types.length <= PROFILE_MAX_COMPETITION_TYPES, {
+        message: `Total jenis lomba tidak boleh lebih dari ${PROFILE_MAX_COMPETITION_TYPES}.`,
+        path: ["competition_types"],
+    })
+    .refine((data) => data.competition_types.length + data.custom_competition_types.length >= 1, {
+        message: "Pilih minimal 1 jenis lomba.",
+        path: ["competition_types"],
     });
 
 export function safeParseProfileStepOne(formData: FormData) {
