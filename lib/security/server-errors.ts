@@ -14,6 +14,13 @@ export function logServerError(context: ServerErrorContext, error: unknown): voi
     });
 }
 
+export function logServerWarning(context: ServerErrorContext, error: unknown): void {
+    console.warn("Server operation warning", {
+        ...context,
+        error: error instanceof Error ? error.message : String(error),
+    });
+}
+
 export function getUserErrorMessage(message: string): string {
     return message;
 }

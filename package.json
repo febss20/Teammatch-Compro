@@ -8,10 +8,17 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"console.log('Belum ada suite test default. Jalankan npm run smoke:routes saat server aktif.')\"",
+    "check:build-budget": "node scripts/check-build-budget.mjs",
+    "verify:release": "npm run lint && npm run typecheck && npm run format:check && npm run build && npm run check:build-budget",
+    "smoke:routes": "node scripts/smoke-routes.mjs",
     "format": "prettier --write \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,cjs,jsx,ts,tsx,css,json}\""
   },
   "dependencies": {
+    "@fontsource/bebas-neue": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
     "lucide-react": "^0.546.0",

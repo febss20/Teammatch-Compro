@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { validateCustomSkill, normalizeText } from "@/lib/profile/normalization";
+import { normalizeText, validateCustomSkill } from "@/lib/profile/normalization";
 
 interface ChipInputProps {
     name: string;
@@ -19,23 +19,28 @@ interface ChipInputProps {
 export function ChipInput({
     name,
     label,
-    placeholder = "Ketik lalu tekan Enter...",
-    maxItems = 5,
-    currentCount = 0,
-    disabled = false,
-    defaultItems = [],
+    placeholder,
+    maxItems,
+    currentCount,
+    disabled,
+    defaultItems,
     errorMessage,
     onItemsChange,
     helperText,
 }: ChipInputProps) {
-    const [items, setItems] = useState<string[]>(defaultItems);
+    const resolvedPlaceholder = placeholder ?? "Ketik lalu tekan Enter...";
+    const resolvedMaxItems = maxItems ?? 5;
+    const resolvedCurrentCount = currentCount ?? 0;
+    const resolvedDisabled = disabled ?? false;
+    const resolvedDefaultItems = defaultItems ?? [];
+    const [items, setItems] = useState<string[]>(resolvedDefaultItems);
     const [input, setInput] = useState("");
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const totalItems = currentCount + items.length;
-    const canAdd = totalItems < maxItems;
-    const limitMessage = `Maksimal ${maxItems} item. Hapus salah satu untuk menambahkan item lain.`;
+    const totalItems = resolvedCurrentCount + items.length;
+    const canAdd = totalItems < resolvedMaxItems;
+    const limitMessage = `Maksimal ${resolvedMaxItems} item. Hapus salah satu untuk menambahkan item lain.`;
 
     const handleAddItem = () => {
         const trimmed = input.trim();
@@ -72,15 +77,15 @@ export function ChipInput({
     };
 
     const handleRemoveItem = (index: number) => {
-        const newItems = items.filter((_, i) => i !== index);
+        const newItems = items.filter((_, itemIndex) => itemIndex !== index);
         setItems(newItems);
         onItemsChange?.(newItems);
         setError(null);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault();
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter" || event.key === ",") {
+            event.preventDefault();
             handleAddItem();
         }
     };
@@ -90,7 +95,7 @@ export function ChipInput({
             <div className="flex items-end justify-between gap-2">
                 <label className="brutal-label">{label}</label>
                 <span className="text-sm text-[var(--tm-muted)]">
-                    {totalItems}/{maxItems}
+                    {totalItems}/{resolvedMaxItems}
                 </span>
             </div>
 
@@ -102,11 +107,11 @@ export function ChipInput({
                             <button
                                 type="button"
                                 onClick={() => handleRemoveItem(index)}
-                                disabled={disabled}
+                                disabled={resolvedDisabled}
                                 className="text-base leading-none hover:opacity-70"
                                 aria-label={`Hapus ${item}`}
                             >
-                                ×
+                                x
                             </button>
                         </div>
                     ))}
@@ -116,20 +121,20 @@ export function ChipInput({
                     <input
                         ref={inputRef}
                         type="text"
-                        placeholder={placeholder}
+                        placeholder={resolvedPlaceholder}
                         value={input}
-                        onChange={(e) => {
-                            setInput(e.target.value);
+                        onChange={(event) => {
+                            setInput(event.target.value);
                             setError(null);
                         }}
                         onKeyDown={handleKeyDown}
-                        disabled={disabled || !canAdd}
+                        disabled={resolvedDisabled || !canAdd}
                         className="brutal-input"
                     />
                     <button
                         type="button"
                         onClick={handleAddItem}
-                        disabled={disabled || !canAdd || !input.trim()}
+                        disabled={resolvedDisabled || !canAdd || !input.trim()}
                         className="brutal-button"
                     >
                         Tambah
@@ -145,7 +150,7 @@ export function ChipInput({
             )}
             {helperText && canAdd && <p className="text-sm text-[var(--tm-muted)]">{helperText}</p>}
 
-            {/* Hidden inputs for form submission */}
+            {/* Input tersembunyi untuk pengiriman form */}
             {items.map((item, index) => (
                 <input key={index} type="hidden" name={name} value={item} />
             ))}

@@ -5,7 +5,13 @@ import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { galleryCategories, getGallerySearchState, type GalleryCategory, type GalleryPhoto } from "@/lib/gallery/api";
 
+interface GalleryEmptyState {
+    body: string;
+    title: string;
+}
+
 interface GalleryProps {
+    emptyState?: GalleryEmptyState | null;
     initialPhotos: GalleryPhoto[];
     showSearch?: boolean;
 }
@@ -25,7 +31,7 @@ function buildGallerySearchParams(q: string, category: GalleryCategory): URLSear
     return params;
 }
 
-export default function Gallery({ initialPhotos, showSearch = false }: GalleryProps) {
+export default function Gallery({ emptyState, initialPhotos, showSearch }: GalleryProps) {
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -38,6 +44,7 @@ export default function Gallery({ initialPhotos, showSearch = false }: GalleryPr
         category: searchParams.get("category"),
     });
     const activeCategory = urlState.category;
+    const shouldShowSearch = showSearch === true;
 
     const replaceGalleryUrl = (queryValue: string, category: GalleryCategory) => {
         const nextParams = buildGallerySearchParams(queryValue, category);
@@ -64,6 +71,7 @@ export default function Gallery({ initialPhotos, showSearch = false }: GalleryPr
                     {galleryCategories.map((category) => (
                         <button
                             key={category}
+                            type="button"
                             onClick={() => handleCategoryChange(category)}
                             className={`display-font rounded-full border-[3px] px-4 py-3 text-lg uppercase ${
                                 activeCategory === category
@@ -76,7 +84,7 @@ export default function Gallery({ initialPhotos, showSearch = false }: GalleryPr
                     ))}
                 </div>
 
-                {showSearch && (
+                {shouldShowSearch && (
                     <form onSubmit={handleSearch} className="relative w-full md:w-[22rem]">
                         <input
                             key={`${urlState.q}-${activeCategory}`}
@@ -89,6 +97,7 @@ export default function Gallery({ initialPhotos, showSearch = false }: GalleryPr
                         />
                         <button
                             type="submit"
+                            aria-label="Cari galeri"
                             className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent-2)] shadow-[3px_3px_0_var(--tm-line)]"
                         >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,12 +148,21 @@ export default function Gallery({ initialPhotos, showSearch = false }: GalleryPr
                       ))}
             </div>
 
+            {!isPending && initialPhotos.length === 0 && emptyState && (
+                <div className="brutal-panel grid gap-3 bg-[var(--tm-paper-strong)] p-6" role="status" aria-live="polite">
+                    <p className="display-font text-3xl leading-none text-[var(--tm-line)]">{emptyState.title}</p>
+                    <p className="text-base leading-8 text-[var(--tm-muted)]">{emptyState.body}</p>
+                </div>
+            )}
+
             {selectedPhoto && (
                 <div
                     className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(19,19,19,0.92)] p-4"
                     onClick={() => setSelectedPhoto(null)}
                 >
                     <button
+                        type="button"
+                        aria-label="Tutup preview foto"
                         className="absolute right-6 top-6 inline-flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-[var(--tm-paper-strong)] bg-[var(--tm-accent)] text-[var(--tm-line)] shadow-[4px_4px_0_#fff9ef]"
                         onClick={() => setSelectedPhoto(null)}
                     >

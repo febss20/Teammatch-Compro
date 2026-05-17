@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { startTransition, useOptimistic, useState } from "react";
 import { deleteCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
-import DeleteBoardButton from "@/components/dashboard/DeleteBoardButton";
+import ConfirmationDialog from "@/components/shared/ConfirmationDialog";
 import { formatDashboardDate, formatDashboardDateTime } from "@/lib/shared/formatters";
 import type { CompetitionIdeaBoardRecord } from "@/lib/types";
 
@@ -13,6 +13,7 @@ interface BoardListProps {
 
 export default function BoardList({ boards }: BoardListProps) {
     const [boardState, setBoardState] = useState<CompetitionIdeaBoardRecord[]>(boards);
+    const [boardToDelete, setBoardToDelete] = useState<CompetitionIdeaBoardRecord | null>(null);
     const [pendingBoardId, setPendingBoardId] = useState<string | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [optimisticBoards, removeOptimisticBoard] = useOptimistic(
@@ -21,8 +22,10 @@ export default function BoardList({ boards }: BoardListProps) {
             currentBoards.filter((board) => board.id !== deletedBoardId),
     );
 
-    const handleDelete = async (boardId: string, formData: FormData): Promise<void> => {
+    const handleDelete = async (boardId: string): Promise<boolean> => {
         const currentBoardsSnapshot = [...boardState];
+        const formData = new FormData();
+        formData.set("id", boardId);
 
         setDeleteError(null);
         setPendingBoardId(boardId);
@@ -36,11 +39,24 @@ export default function BoardList({ boards }: BoardListProps) {
             setBoardState(currentBoardsSnapshot);
             setPendingBoardId(null);
             setDeleteError(result.formError ?? "Terjadi kesalahan saat menghapus board ide.");
-            return;
+            return false;
         }
 
         setBoardState((currentBoards) => currentBoards.filter((board) => board.id !== boardId));
         setPendingBoardId(null);
+        return true;
+    };
+
+    const handleConfirmDelete = async (): Promise<void> => {
+        if (!boardToDelete) {
+            return;
+        }
+
+        const wasDeleted = await handleDelete(boardToDelete.id);
+
+        if (wasDeleted) {
+            setBoardToDelete(null);
+        }
     };
 
     return (
@@ -109,16 +125,29 @@ export default function BoardList({ boards }: BoardListProps) {
                             <Link href={`/dashboard/boards/${board.id}/edit`} className="brutal-button-secondary w-full">
                                 Edit
                             </Link>
-                            <DeleteBoardButton
-                                id={board.id}
+                            <button
+                                type="button"
                                 disabled={pendingBoardId !== null}
-                                pending={pendingBoardId === board.id}
-                                onDelete={async (formData: FormData) => handleDelete(board.id, formData)}
-                            />
+                                className="brutal-button-danger w-full disabled:opacity-60"
+                                onClick={() => setBoardToDelete(board)}
+                            >
+                                {pendingBoardId === board.id ? "Menghapus..." : "Hapus"}
+                            </button>
                         </div>
                     </article>
                 ))}
             </div>
+
+            <ConfirmationDialog
+                isOpen={boardToDelete !== null}
+                isPending={boardToDelete !== null && pendingBoardId === boardToDelete.id}
+                title="Hapus board ide ini?"
+                description="Board, slot rekrutmen, dan konteks pengelolaannya akan dihapus dari panel aktif Anda."
+                cancelLabel="Kembali"
+                confirmLabel="Ya, hapus board"
+                onCancel={() => setBoardToDelete(null)}
+                onConfirm={handleConfirmDelete}
+            />
         </section>
     );
 }

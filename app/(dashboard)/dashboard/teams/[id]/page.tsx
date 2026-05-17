@@ -18,6 +18,7 @@ import {
     getTeamTestimonials,
 } from "@/lib/dashboard/data";
 import { formatDashboardDate, formatDashboardDateTime } from "@/lib/shared/formatters";
+import { sanitizeTeamResourceUrl } from "@/lib/team/validation";
 
 function formatActivityLabel(eventType: string): string {
     if (eventType === "application_accepted") {
@@ -269,17 +270,34 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                         <p className="display-font text-3xl leading-none">Resource Tim</p>
                         <div className="mt-4 grid gap-3">
                             {resources.length > 0 ? (
-                                resources.map((resource) => (
-                                    <a
-                                        key={resource.id}
-                                        href={resource.url ?? "#"}
-                                        target={resource.url ? "_blank" : undefined}
-                                        rel={resource.url ? "noreferrer" : undefined}
-                                        className="brutal-button-secondary"
-                                    >
-                                        {resource.label} / {resource.resourceType}
-                                    </a>
-                                ))
+                                resources.map((resource) => {
+                                    const safeResourceUrl = sanitizeTeamResourceUrl(resource.url);
+
+                                    if (!safeResourceUrl) {
+                                        return (
+                                            <div key={resource.id} className="brutal-panel-soft p-4">
+                                                <p className="display-font text-xl leading-none">
+                                                    {resource.label} / {resource.resourceType}
+                                                </p>
+                                                <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
+                                                    URL resource belum tersedia.
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <a
+                                            key={resource.id}
+                                            href={safeResourceUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="brutal-button-secondary"
+                                        >
+                                            {resource.label} / {resource.resourceType}
+                                        </a>
+                                    );
+                                })
                             ) : (
                                 <div className="brutal-panel-soft p-4">
                                     <p className="text-sm leading-7 text-[var(--tm-muted)]">

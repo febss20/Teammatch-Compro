@@ -5,19 +5,24 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 const contentSecurityPolicy = [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://*.googleusercontent.com",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.unsplash.com https://challenges.cloudflare.com",
     "font-src 'self'",
     "frame-src https://challenges.cloudflare.com",
     "frame-ancestors 'none'",
     "form-action 'self'",
+    "manifest-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+    "worker-src 'self' blob:",
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests", "block-all-mixed-content"]),
 ].join("; ");
 
 const nextConfig: NextConfig = {
+    poweredByHeader: false,
     images: {
         contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
         remotePatterns: [
@@ -49,6 +54,10 @@ const nextConfig: NextConfig = {
                         value: "nosniff",
                     },
                     {
+                        key: "X-DNS-Prefetch-Control",
+                        value: "off",
+                    },
+                    {
                         key: "Referrer-Policy",
                         value: "strict-origin-when-cross-origin",
                     },
@@ -60,6 +69,30 @@ const nextConfig: NextConfig = {
                         key: "X-Frame-Options",
                         value: "DENY",
                     },
+                    {
+                        key: "X-Permitted-Cross-Domain-Policies",
+                        value: "none",
+                    },
+                    {
+                        key: "Origin-Agent-Cluster",
+                        value: "?1",
+                    },
+                    {
+                        key: "Cross-Origin-Opener-Policy",
+                        value: "same-origin",
+                    },
+                    {
+                        key: "Cross-Origin-Resource-Policy",
+                        value: "same-site",
+                    },
+                    ...(isDevelopment
+                        ? []
+                        : [
+                              {
+                                  key: "Strict-Transport-Security",
+                                  value: "max-age=31536000; includeSubDomains; preload",
+                              },
+                          ]),
                 ],
             },
         ];

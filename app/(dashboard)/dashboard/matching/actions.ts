@@ -4,7 +4,7 @@ import { requireCompletedProfile } from "@/lib/auth";
 import { boardApplicationInitialState, joinRequestInitialState } from "@/lib/forms";
 import { safeParseBoardApplication, safeParseJoinRequest } from "@/lib/matching/validation";
 import { sendServerNotification } from "@/lib/notifications/service";
-import { RateLimitError } from "@/lib/security/rate-limit";
+import { RateLimitError, throwIfRateLimited } from "@/lib/security/rate-limit";
 import { logServerError, PublicActionError } from "@/lib/security/server-errors";
 import { getFieldErrors } from "@/lib/shared/action-utils";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -118,6 +118,7 @@ export async function sendJoinRequest(
         });
 
         if (error) {
+            throwIfRateLimited(error);
             throw new Error(`Gagal mengirim request: ${error.message}`);
         }
 
@@ -336,6 +337,7 @@ export async function applyToBoard(
         });
 
         if (error) {
+            throwIfRateLimited(error);
             throw new Error(`Gagal mengirim lamaran: ${error.message}`);
         }
 

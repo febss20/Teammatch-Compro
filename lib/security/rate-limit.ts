@@ -11,6 +11,31 @@ export class RateLimitError extends Error {
     }
 }
 
+interface SupabaseRpcErrorLike {
+    code: string | null;
+    details: string | null;
+    hint: string | null;
+    message: string;
+}
+
+function getSupabaseRpcErrorLike(error: unknown): SupabaseRpcErrorLike | null {
+    if (!error || typeof error !== "object") {
+        return null;
+    }
+
+    const message = "message" in error && typeof error.message === "string" ? error.message : null;
+    if (!message) {
+        return null;
+    }
+
+    return {
+        code: "code" in error && typeof error.code === "string" ? error.code : null,
+        details: "details" in error && typeof error.details === "string" ? error.details : null,
+        hint: "hint" in error && typeof error.hint === "string" ? error.hint : null,
+        message,
+    };
+}
+
 interface RateLimitInput {
     limitCount: number;
     scope: string;
@@ -75,5 +100,30 @@ export async function assertRateLimit(input: RateLimitInput): Promise<void> {
 
     if (error) {
         throw new RateLimitError("Terlalu banyak percobaan. Coba lagi nanti.");
+    }
+}
+
+export function mapSupabaseRateLimitError(error: SupabaseRpcErrorLike): RateLimitError | null {
+    const searchableText = [error.message, error.details, error.hint]
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .join(" ")
+        .toLowerCase();
+
+    if (!searchableText.includes("rate limit exceeded")) {
+        return null;
+    }
+
+    return new RateLimitError("Terlalu banyak percobaan. Coba lagi nanti.");
+}
+
+export function throwIfRateLimited(error: unknown): void {
+    const rpcError = getSupabaseRpcErrorLike(error);
+    if (!rpcError) {
+        return;
+    }
+
+    const rateLimitError = mapSupabaseRateLimitError(rpcError);
+    if (rateLimitError) {
+        throw rateLimitError;
     }
 }

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { assertRateLimit, getClientIpFromRequest, RateLimitError } from "@/lib/security/rate-limit";
 import { logServerError } from "@/lib/security/server-errors";
-import { verifyTurnstileToken } from "@/lib/security/turnstile";
+import { TurnstileValidationError, verifyTurnstileToken } from "@/lib/security/turnstile";
 import { contactPayloadSchema } from "@/lib/shared/contact-validation";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 interface ContactRequestBody {
     email?: unknown;
@@ -21,7 +22,13 @@ export async function POST(request: Request) {
             windowSeconds: 600,
         });
 
-        const body = (await request.json()) as ContactRequestBody;
+        let body: ContactRequestBody;
+        try {
+            body = (await request.json()) as ContactRequestBody;
+        } catch {
+            return NextResponse.json({ error: "Payload kontak tidak valid." }, { status: 400 });
+        }
+
         const validationResult = contactPayloadSchema.safeParse(body);
 
         if (!validationResult.success) {
@@ -39,12 +46,16 @@ export async function POST(request: Request) {
             token: typeof body.turnstileToken === "string" ? body.turnstileToken : null,
         });
 
-        console.log("New contact message", {
-            name: validationResult.data.name,
+        const supabase = createAdminSupabaseClient();
+        const { error } = await supabase.from("contact_messages").insert({
             email: validationResult.data.email,
             message: validationResult.data.message,
-            timestamp: new Date().toISOString(),
+            name: validationResult.data.name,
         });
+
+        if (error) {
+            throw new Error(`Gagal menyimpan pesan kontak: ${error.message}`);
+        }
 
         return NextResponse.json({
             success: true,
@@ -55,7 +66,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 429 });
         }
 
-        logServerError({ action: "contact.submit", metadata: { clientIp } }, error);
-        return NextResponse.json({ error: "Pesan belum bisa diproses saat ini." }, { status: 400 });
+        if (error instanceof TurnstileValidationError) {
+            return NextResponse.json({ error: "Verifikasi keamanan gagal." }, { status: 400 });
+        }
+
+        logServerError({ action: "contact.submit" }, error);
+        return NextResponse.json({ error: "Pesan belum bisa diproses saat ini." }, { status: 500 });
     }
 }

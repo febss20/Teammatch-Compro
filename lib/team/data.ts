@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 import type {
     TeamActivityEventRecord,
     TeamListItemRecord,
@@ -11,6 +12,29 @@ import type {
     TestimonialRecord,
 } from "@/lib/types";
 import { getProfileNameMap } from "@/lib/profile/data";
+
+type TeamCommitmentRelationRow = Pick<
+    Tables<"team_commitments">,
+    "confirmed_at" | "deadline_at" | "hours_per_week" | "id" | "last_reminded_at"
+>;
+
+interface TeamMemberRelationRow extends Pick<
+    Tables<"team_members">,
+    "confirmation_status" | "id" | "profile_id" | "role_name"
+> {
+    profiles: Pick<Tables<"profiles">, "full_name"> | null;
+    team_commitments: TeamCommitmentRelationRow | TeamCommitmentRelationRow[] | null;
+}
+
+function normalizeTeamCommitmentRow(
+    relation: TeamCommitmentRelationRow | TeamCommitmentRelationRow[] | null,
+): TeamCommitmentRelationRow | null {
+    if (!relation) {
+        return null;
+    }
+
+    return Array.isArray(relation) ? (relation[0] ?? null) : relation;
+}
 
 export async function getTeamById(teamId: string): Promise<TeamRecord | null> {
     const supabase = await createServerSupabaseClient();
@@ -124,23 +148,10 @@ export async function getTeamMembers(teamId: string): Promise<TeamMemberRecord[]
         throw new Error(`Gagal memuat anggota tim: ${error.message}`);
     }
 
-    const rows = (data ?? []) as unknown as {
-        id: string;
-        profile_id: string;
-        role_name: string;
-        confirmation_status: string;
-        profiles: { full_name: string | null } | null;
-        team_commitments: {
-            id: string;
-            deadline_at: string;
-            confirmed_at: string | null;
-            last_reminded_at: string | null;
-            hours_per_week: number;
-        } | null;
-    }[];
+    const rows = (data ?? []) as TeamMemberRelationRow[];
 
     return rows.map((row) => {
-        const commitment = row.team_commitments ?? null;
+        const commitment = normalizeTeamCommitmentRow(row.team_commitments);
         return {
             id: row.id,
             profileId: row.profile_id,

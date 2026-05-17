@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { updateProfile } from "@/app/(dashboard)/dashboard/actions";
 import { profileInitialState } from "@/lib/forms";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 import { dashboardMonthLabels } from "@/lib/platform";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
@@ -19,6 +20,7 @@ interface ProfileEditorFormProps {
 
 export default function ProfileEditorForm({ competitionTypes, profile, skills }: ProfileEditorFormProps) {
     const [state, formAction, pending] = useActionState(updateProfile, profileInitialState);
+    const { idempotencyKey, rotateIdempotencyKey } = useIdempotencyKey();
 
     const customSkills = profile.skills.filter((skill) => skill.slug.startsWith("custom-"));
     const customCompetitions = profile.competitionTypes.filter((comp) => comp.slug.startsWith("custom-"));
@@ -55,9 +57,18 @@ export default function ProfileEditorForm({ competitionTypes, profile, skills }:
     const formCompetitionIds = submittedCompetitionIds ? new Set(submittedCompetitionIds) : savedTaxonomyCompetitionIds;
     const formAvailableMonths = new Set(submittedAvailableMonths ?? Array.from(selectedMonths));
 
+    useEffect(() => {
+        if (!state.success) {
+            return;
+        }
+
+        rotateIdempotencyKey();
+    }, [rotateIdempotencyKey, state.success]);
+
     return (
         <form action={formAction} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
+                <input type="hidden" name="idempotency_key" value={idempotencyKey} />
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
                 {state.success && state.message && <div className="brutal-alert-success text-sm">{state.message}</div>}
 

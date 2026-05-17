@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { updateSettings } from "@/app/(dashboard)/dashboard/actions";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { settingsInitialState } from "@/lib/forms";
 import { getFirstFieldError } from "@/lib/shared/form-errors";
 import { getStringFormValue } from "@/lib/shared/form-values";
@@ -19,6 +20,7 @@ interface SettingsFormProps {
 
 export default function SettingsForm({ preferences, profile }: SettingsFormProps) {
     const [state, formAction, pending] = useActionState(updateSettings, settingsInitialState);
+    const { idempotencyKey, rotateIdempotencyKey } = useIdempotencyKey();
     const notificationFields = [
         { name: "request_updates", label: "Update request", checked: preferences?.request_updates ?? true },
         { name: "board_updates", label: "Update lamaran board", checked: preferences?.board_updates ?? true },
@@ -26,9 +28,18 @@ export default function SettingsForm({ preferences, profile }: SettingsFormProps
         { name: "reminder_updates", label: "Reminder penting", checked: preferences?.reminder_updates ?? true },
     ] as const;
 
+    useEffect(() => {
+        if (!state.success) {
+            return;
+        }
+
+        rotateIdempotencyKey();
+    }, [rotateIdempotencyKey, state.success]);
+
     return (
         <form action={formAction} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
+                <input type="hidden" name="idempotency_key" value={idempotencyKey} />
                 {state.formError && <div className="brutal-alert-error text-sm">{state.formError}</div>}
                 {state.success && state.message && <div className="brutal-alert-success text-sm">{state.message}</div>}
 

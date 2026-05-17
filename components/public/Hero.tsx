@@ -4,19 +4,19 @@ export default function Hero() {
     return (
         <section className="overflow-hidden px-4 pb-16 pt-10 md:pb-24 md:pt-14">
             <div className="page-frame grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-                <div className="animate-rise space-y-6">
+                <div className="space-y-6">
                     <div className="section-kicker">
                         <span>Ruang kolaborasi kompetisi kampus</span>
                     </div>
                     <div className="space-y-5">
-                        <p className="display-font text-[clamp(4rem,11vw,8rem)] leading-[0.9] text-[var(--tm-line)]">
+                        <h1 className="display-font text-[clamp(4rem,11vw,8rem)] leading-[0.9] text-[var(--tm-line)]">
                             BANGUN
                             <br />
                             TIM
                             <span className="ml-3 inline-block -rotate-2 bg-[var(--tm-accent)] px-3 py-1">LOMBA</span>
                             <br />
                             DENGAN ARAH
-                        </p>
+                        </h1>
                         <p className="max-w-2xl text-lg leading-8 text-[var(--tm-muted)] md:text-xl">
                             TeamMatch membantu mahasiswa membagikan ide lomba, menjelaskan kebutuhan tim, dan mulai
                             berkolaborasi dengan arah yang lebih jelas sejak awal.

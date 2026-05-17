@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 import type {
     CompetitionTypeRecord,
     DashboardMonth,
@@ -11,32 +12,16 @@ import type {
 import { mapCompetitionType, mapProfileRecord, mapSkill } from "@/lib/profile/mappers";
 
 interface SkillLinkRow {
-    skill_taxonomy: {
-        id: string;
-        slug: string;
-        label: string;
-        category: string;
-    } | null;
+    skill_taxonomy: Pick<Tables<"skill_taxonomy">, "category" | "id" | "label" | "slug"> | null;
 }
 
 interface CompetitionLinkRow {
-    competition_type_taxonomy: {
-        id: string;
-        slug: string;
-        label: string;
-        recommended_skills: string[];
-    } | null;
+    competition_type_taxonomy: Pick<Tables<"competition_type_taxonomy">, "id" | "label" | "recommended_skills" | "slug"> | null;
 }
 
-interface CustomSkillRow {
-    id: string;
-    label: string;
-}
+type CustomSkillRow = Pick<Tables<"profile_custom_skills">, "id" | "label">;
 
-interface CustomCompetitionTypeRow {
-    id: string;
-    label: string;
-}
+type CustomCompetitionTypeRow = Pick<Tables<"profile_custom_competition_type">, "id" | "label">;
 
 interface ProfileSummaryRow {
     average_rating: number;
@@ -52,6 +37,38 @@ interface CompetitionHistoryRow {
     best_result: string | null;
     created_at: string;
     team_id: string | null;
+}
+
+function normalizeSingleRelationRow<T>(relation: T | T[] | null): T | null {
+    if (!relation) {
+        return null;
+    }
+
+    return Array.isArray(relation) ? (relation[0] ?? null) : relation;
+}
+
+function normalizeSkillLinkRows(rows: SkillLinkRow[] | null): SkillLinkRow[] {
+    return (rows ?? []).map((row) => ({
+        skill_taxonomy: normalizeSingleRelationRow(row.skill_taxonomy),
+    }));
+}
+
+function normalizeCompetitionLinkRows(rows: CompetitionLinkRow[] | null): CompetitionLinkRow[] {
+    return (rows ?? []).map((row) => ({
+        competition_type_taxonomy: normalizeSingleRelationRow(row.competition_type_taxonomy),
+    }));
+}
+
+function isSkillLinkRelationRow(
+    value: SkillLinkRow["skill_taxonomy"],
+): value is Pick<Tables<"skill_taxonomy">, "category" | "id" | "label" | "slug"> {
+    return value !== null;
+}
+
+function isCompetitionLinkRelationRow(
+    value: CompetitionLinkRow["competition_type_taxonomy"],
+): value is Pick<Tables<"competition_type_taxonomy">, "id" | "label" | "recommended_skills" | "slug"> {
+    return value !== null;
 }
 
 export async function getTaxonomies(): Promise<{
@@ -160,10 +177,10 @@ export async function getProfileRecord(profileId: string, email?: string | null)
         throw new Error(`Gagal memuat riwayat lomba profil: ${competitionHistoryError.message}`);
     }
 
-    const skillLinkRows = (skillLinks ?? []) as unknown as SkillLinkRow[];
-    const competitionLinkRows = (competitionLinks ?? []) as unknown as CompetitionLinkRow[];
-    const customSkillRows = (customSkills ?? []) as unknown as CustomSkillRow[];
-    const customCompetitionRows = (customCompetitions ?? []) as unknown as CustomCompetitionTypeRow[];
+    const skillLinkRows = normalizeSkillLinkRows((skillLinks ?? []) as SkillLinkRow[]);
+    const competitionLinkRows = normalizeCompetitionLinkRows((competitionLinks ?? []) as CompetitionLinkRow[]);
+    const customSkillRows = (customSkills ?? []) as CustomSkillRow[];
+    const customCompetitionRows = (customCompetitions ?? []) as CustomCompetitionTypeRow[];
     const profileSummary = (profileSummaryRow ?? null) as ProfileSummaryRow | null;
     const competitionHistory = ((competitionHistoryRows ?? []) as CompetitionHistoryRow[]).map(
         (item): ProfileCompetitionHistoryItem => ({
@@ -178,8 +195,8 @@ export async function getProfileRecord(profileId: string, email?: string | null)
 
     const taxonomySkills = skillLinkRows
         .map((item) => item.skill_taxonomy)
-        .filter(Boolean)
-        .map((item) => mapSkill(item as { id: string; slug: string; label: string; category: string }));
+        .filter(isSkillLinkRelationRow)
+        .map((item) => mapSkill(item));
 
     const customSkillsFormatted = customSkillRows.map((item) => ({
         id: item.id,
@@ -190,8 +207,8 @@ export async function getProfileRecord(profileId: string, email?: string | null)
 
     const competitionTypesFormatted = competitionLinkRows
         .map((item) => item.competition_type_taxonomy)
-        .filter(Boolean)
-        .map((item) => mapCompetitionType(item as { id: string; slug: string; label: string; recommended_skills: string[] }));
+        .filter(isCompetitionLinkRelationRow)
+        .map((item) => mapCompetitionType(item));
 
     const customCompetitionsFormatted = customCompetitionRows.map((item) => ({
         id: item.id,

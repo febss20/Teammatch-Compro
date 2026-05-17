@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { Logo } from "@/components/shared/Logo";
 import NotificationsNavBadge from "@/components/dashboard/NotificationsNavBadge";
 
 const LINKS = [
@@ -27,7 +28,9 @@ export default function DashboardNav({ notificationUnreadCount, notificationUser
     return (
         <nav className="brutal-panel sticky top-4 z-40 bg-[var(--tm-paper-strong)] p-4 md:p-5">
             <div className="flex items-center justify-between">
-                <p className="display-font text-2xl leading-none">Workspace</p>
+                <Link href="/">
+                    <Logo />
+                </Link>
 
                 <button
                     className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] border-[3px] border-[var(--tm-line)] bg-[var(--tm-accent)] shadow-[4px_4px_0_var(--tm-line)] lg:hidden"

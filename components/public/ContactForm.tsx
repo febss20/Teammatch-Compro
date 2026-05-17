@@ -1,11 +1,19 @@
 "use client";
 
 import Script from "next/script";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 interface ContactErrorResponse {
     error?: string;
     fieldErrors?: Partial<Record<"email" | "message" | "name", string[]>>;
+}
+
+declare global {
+    interface Window {
+        turnstile?: {
+            reset: (widgetId?: string | number) => void;
+        };
+    }
 }
 
 export default function ContactForm() {
@@ -14,6 +22,14 @@ export default function ContactForm() {
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<"email" | "message" | "name", string[]>>>({});
     const [status, setStatus] = useState<string | null>(null);
     const [formData, setFormData] = useState({ name: "", email: "", message: "" });
+
+    const resetTurnstileChallenge = useCallback(() => {
+        if (!turnstileSiteKey) {
+            return;
+        }
+
+        window.turnstile?.reset();
+    }, [turnstileSiteKey]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const fieldName = e.target.name as "email" | "message" | "name";
@@ -44,14 +60,17 @@ export default function ContactForm() {
                 setErrorMessage(errorResponse.error ?? "Gagal mengirim pesan. Silakan coba lagi.");
                 setFieldErrors(errorResponse.fieldErrors ?? {});
                 setStatus("error");
+                resetTurnstileChallenge();
                 return;
             }
 
             setStatus("success");
             setFormData({ name: "", email: "", message: "" });
+            resetTurnstileChallenge();
         } catch {
             setErrorMessage("Gagal mengirim pesan. Silakan coba lagi.");
             setStatus("error");
+            resetTurnstileChallenge();
         }
     };
 
@@ -62,7 +81,13 @@ export default function ContactForm() {
                 <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-[var(--tm-line)]">
                     Terima kasih. Pesan Anda sudah kami terima dan akan segera kami tindak lanjuti.
                 </p>
-                <button onClick={() => setStatus(null)} className="brutal-button mt-6">
+                <button
+                    onClick={() => {
+                        setStatus(null);
+                        resetTurnstileChallenge();
+                    }}
+                    className="brutal-button mt-6"
+                >
                     Kirim pesan lain
                 </button>
             </div>

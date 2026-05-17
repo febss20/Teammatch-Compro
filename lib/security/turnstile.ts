@@ -10,6 +10,13 @@ interface TurnstileResponse {
     "error-codes"?: string[];
 }
 
+export class TurnstileValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "TurnstileValidationError";
+    }
+}
+
 function getTurnstileSecret(): string | null {
     const value = process.env.TURNSTILE_SECRET_KEY;
     if (value && value.length > 0) {
@@ -43,7 +50,7 @@ export async function verifyTurnstileToken(input: TurnstileVerificationInput): P
     }
 
     if (!input.token || input.token.length === 0) {
-        throw new Error("Verifikasi keamanan gagal.");
+        throw new TurnstileValidationError("Verifikasi keamanan gagal.");
     }
 
     const body = new URLSearchParams({
@@ -57,7 +64,7 @@ export async function verifyTurnstileToken(input: TurnstileVerificationInput): P
         try {
             const result = await postTurnstileVerification(body);
             if (!result.success) {
-                throw new Error(`Token Turnstile tidak valid: ${(result["error-codes"] ?? []).join(",")}`);
+                throw new TurnstileValidationError(`Token Turnstile tidak valid: ${(result["error-codes"] ?? []).join(",")}`);
             }
             return;
         } catch (error) {

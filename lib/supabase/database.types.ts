@@ -297,6 +297,7 @@ export type Database = {
                 Row: {
                     closed_at: string | null;
                     competition_type: string;
+                    creation_request_id: string | null;
                     created_at: string;
                     deadline: string;
                     description: string;
@@ -315,6 +316,7 @@ export type Database = {
                 Insert: {
                     closed_at?: string | null;
                     competition_type: string;
+                    creation_request_id?: string | null;
                     created_at?: string;
                     deadline: string;
                     description: string;
@@ -333,6 +335,7 @@ export type Database = {
                 Update: {
                     closed_at?: string | null;
                     competition_type?: string;
+                    creation_request_id?: string | null;
                     created_at?: string;
                     deadline?: string;
                     description?: string;
@@ -385,6 +388,30 @@ export type Database = {
                     recommended_skills?: string[];
                     slug?: string;
                     sort_order?: number;
+                };
+                Relationships: [];
+            };
+            contact_messages: {
+                Row: {
+                    created_at: string;
+                    email: string;
+                    id: string;
+                    message: string;
+                    name: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    email: string;
+                    id?: string;
+                    message: string;
+                    name: string;
+                };
+                Update: {
+                    created_at?: string;
+                    email?: string;
+                    id?: string;
+                    message?: string;
+                    name?: string;
                 };
                 Relationships: [];
             };
@@ -527,6 +554,47 @@ export type Database = {
                         foreignKeyName: "notification_preferences_user_id_fkey";
                         columns: ["user_id"];
                         isOneToOne: true;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                ];
+            };
+            notification_delivery_failures: {
+                Row: {
+                    attempted_at: string;
+                    category: string;
+                    channel: string;
+                    error_message: string;
+                    event_type: string;
+                    id: number;
+                    payload: Json;
+                    target_user_id: string;
+                };
+                Insert: {
+                    attempted_at?: string;
+                    category: string;
+                    channel: string;
+                    error_message: string;
+                    event_type: string;
+                    id?: never;
+                    payload?: Json;
+                    target_user_id: string;
+                };
+                Update: {
+                    attempted_at?: string;
+                    category?: string;
+                    channel?: string;
+                    error_message?: string;
+                    event_type?: string;
+                    id?: never;
+                    payload?: Json;
+                    target_user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "notification_delivery_failures_target_user_id_fkey";
+                        columns: ["target_user_id"];
+                        isOneToOne: false;
                         referencedRelation: "profiles";
                         referencedColumns: ["id"];
                     },
@@ -1262,6 +1330,40 @@ export type Database = {
                     reset_at: string;
                 }[];
             };
+            create_board_with_slots: {
+                Args: {
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            create_board_with_slots_idempotent: {
+                Args: {
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_idempotency_key: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                    was_replayed: boolean;
+                }[];
+            };
             create_board_application: {
                 Args: {
                     p_actor_name: string;
@@ -1327,6 +1429,27 @@ export type Database = {
                     reopened_team_name: string;
                 }[];
             };
+            replace_profile_step_two: {
+                Args: {
+                    p_competition_types: string[];
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_skills: string[];
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            replace_profile_step_two_idempotent: {
+                Args: {
+                    p_competition_types: string[];
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_idempotency_key: string;
+                    p_skills: string[];
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
             respond_join_request: {
                 Args: { p_request_id: string; p_status: string };
                 Returns: {
@@ -1348,6 +1471,29 @@ export type Database = {
                     board_id: string;
                 }[];
             };
+            save_profile_step_three_atomic: {
+                Args: {
+                    p_available_months: string[];
+                    p_complete_profile: boolean;
+                    p_hours_per_week: number;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            save_profile_step_three_atomic_idempotent: {
+                Args: {
+                    p_available_months: string[];
+                    p_complete_profile: boolean;
+                    p_hours_per_week: number;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
             send_commitment_reminder: {
                 Args: { p_team_member_id: string };
                 Returns: {
@@ -1367,6 +1513,107 @@ export type Database = {
                     relinked_application_count: number;
                     synced_member_count: number;
                 }[];
+            };
+            update_board_with_slots: {
+                Args: {
+                    p_board_id: string;
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_status: string;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            update_board_with_slots_idempotent: {
+                Args: {
+                    p_board_id: string;
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_idempotency_key: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_status: string;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            update_profile_atomic: {
+                Args: {
+                    p_available_months: string[];
+                    p_bio: string;
+                    p_campus_name: string;
+                    p_competition_types: string[];
+                    p_complete_profile: boolean;
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_full_name: string;
+                    p_hours_per_week: number;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_skills: string[];
+                    p_user_id: string;
+                    p_username: string;
+                };
+                Returns: undefined;
+            };
+            update_profile_atomic_idempotent: {
+                Args: {
+                    p_available_months: string[];
+                    p_bio: string;
+                    p_campus_name: string;
+                    p_competition_types: string[];
+                    p_complete_profile: boolean;
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_full_name: string;
+                    p_hours_per_week: number;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_skills: string[];
+                    p_user_id: string;
+                    p_username: string;
+                };
+                Returns: undefined;
+            };
+            update_settings_atomic: {
+                Args: {
+                    p_board_updates: boolean;
+                    p_commitment_updates: boolean;
+                    p_public_visibility: boolean;
+                    p_reminder_updates: boolean;
+                    p_request_updates: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            update_settings_atomic_idempotent: {
+                Args: {
+                    p_board_updates: boolean;
+                    p_commitment_updates: boolean;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_reminder_updates: boolean;
+                    p_request_updates: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
             };
             withdraw_board_application: {
                 Args: { p_application_id: string };

@@ -18,6 +18,7 @@ import {
     safeParseTeamRename,
     safeParseTeamResource,
     safeParseTeamResult,
+    sanitizeTeamResourceUrl,
     safeParseTestimonial,
 } from "@/lib/team/validation";
 import type {
@@ -302,11 +303,12 @@ export async function saveTeamResource(
             throw new Error("Anda tidak memiliki akses untuk menambahkan resource tim.");
         }
 
+        const sanitizedResourceUrl = sanitizeTeamResourceUrl(validationResult.data.url);
         const { error: resourceError } = await supabase.from("team_resources").insert({
             team_id: validationResult.data.team_id,
             resource_type: validationResult.data.resource_type,
             label: validationResult.data.label,
-            url: validationResult.data.url.length > 0 ? validationResult.data.url : null,
+            url: sanitizedResourceUrl,
         });
 
         if (resourceError) {

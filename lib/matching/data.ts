@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 import type {
     CandidateRecord,
     CandidateTestimonialItem,
@@ -14,12 +15,12 @@ import { mapCompetitionType, mapProfileRecord, mapSkill } from "@/lib/profile/ma
 
 interface SkillDiscoveryRow {
     profile_id: string;
-    skill_taxonomy: { id: string; slug: string; label: string; category: string } | null;
+    skill_taxonomy: Pick<Tables<"skill_taxonomy">, "category" | "id" | "label" | "slug"> | null;
 }
 
 interface CompetitionDiscoveryRow {
     profile_id: string;
-    competition_type_taxonomy: { id: string; slug: string; label: string; recommended_skills: string[] } | null;
+    competition_type_taxonomy: Pick<Tables<"competition_type_taxonomy">, "id" | "label" | "recommended_skills" | "slug"> | null;
 }
 
 interface AvailabilityRow {
@@ -34,6 +35,28 @@ interface SummaryRow {
     testimonial_count: number;
     best_result: string | null;
     competitions_count: number;
+}
+
+function normalizeRelationRow<T>(relation: T | T[] | null): T | null {
+    if (!relation) {
+        return null;
+    }
+
+    return Array.isArray(relation) ? (relation[0] ?? null) : relation;
+}
+
+function normalizeSkillDiscoveryRows(rows: SkillDiscoveryRow[] | null): SkillDiscoveryRow[] {
+    return (rows ?? []).map((row) => ({
+        profile_id: row.profile_id,
+        skill_taxonomy: normalizeRelationRow(row.skill_taxonomy),
+    }));
+}
+
+function normalizeCompetitionDiscoveryRows(rows: CompetitionDiscoveryRow[] | null): CompetitionDiscoveryRow[] {
+    return (rows ?? []).map((row) => ({
+        competition_type_taxonomy: normalizeRelationRow(row.competition_type_taxonomy),
+        profile_id: row.profile_id,
+    }));
 }
 
 export async function getCandidateDiscovery(viewerId: string): Promise<{
@@ -86,10 +109,10 @@ export async function getCandidateDiscovery(viewerId: string): Promise<{
     const availabilityByProfile = new Map<string, { months: DashboardMonth[]; hours: number }>();
     const summaryByProfile = new Map<string, { avg: number; count: number; bestResult: string | null; competitions: number }>();
 
-    const skillRows = (skillLinksResult.data ?? []) as unknown as SkillDiscoveryRow[];
-    const competitionRows = (preferenceLinksResult.data ?? []) as unknown as CompetitionDiscoveryRow[];
-    const availabilityRows = (availabilityResult.data ?? []) as unknown as AvailabilityRow[];
-    const summaryRows = (summaryResult.data ?? []) as unknown as SummaryRow[];
+    const skillRows = normalizeSkillDiscoveryRows((skillLinksResult.data ?? []) as SkillDiscoveryRow[]);
+    const competitionRows = normalizeCompetitionDiscoveryRows((preferenceLinksResult.data ?? []) as CompetitionDiscoveryRow[]);
+    const availabilityRows = (availabilityResult.data ?? []) as AvailabilityRow[];
+    const summaryRows = (summaryResult.data ?? []) as SummaryRow[];
 
     skillRows.forEach((item) => {
         const current = skillsByProfile.get(item.profile_id) ?? [];

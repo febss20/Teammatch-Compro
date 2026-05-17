@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-issues.md
+/issues
 
 # next.js
 /.next/
@@ -24,6 +24,7 @@ issues.md
 # misc
 .DS_Store
 *.pem
+supabase/.temp/
 
 # debug
 npm-debug.log*

@@ -150,7 +150,7 @@ export async function getOwnBoards(userId: string): Promise<CompetitionIdeaBoard
         throw new Error(`Gagal memuat board milik Anda: ${error.message}`);
     }
 
-    const rows = (data ?? []) as unknown as BoardRecordRow[];
+    const rows = (data ?? []) as BoardRecordRow[];
     return rows.map(mapBoardRecord);
 }
 
@@ -179,7 +179,7 @@ export async function getPublicBoards(filters: {
         throw new Error(`Gagal memuat board publik: ${error.message}`);
     }
 
-    const rows = (data ?? []) as unknown as BoardRecordRow[];
+    const rows = (data ?? []) as BoardRecordRow[];
     const boards = rows.map(mapBoardRecord);
     const creatorMap = await getProfileNameMap([...new Set(boards.map((board) => board.userId))]);
 
@@ -207,7 +207,7 @@ export async function getBoardById(boardId: string): Promise<CompetitionIdeaBoar
         return null;
     }
 
-    const board = mapBoardRecord(data as unknown as BoardRecordRow);
+    const board = mapBoardRecord(data as BoardRecordRow);
     const creatorMap = await getProfileNameMap([board.userId]);
 
     return {

@@ -15,9 +15,14 @@ import {
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import { logServerError } from "@/lib/security/server-errors";
 import { getFieldErrors } from "@/lib/shared/action-utils";
+import { requireIdempotencyKey } from "@/lib/shared/idempotency";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CompetitionIdeaBoardFieldName, FormActionState } from "@/lib/types";
-import { notifyMatchingCandidates, persistBoardWithSlots } from "@/app/(dashboard)/dashboard/_lib/board-writes";
+import {
+    notifyMatchingCandidates,
+    persistBoardWithSlots,
+    updateBoardWithSlots,
+} from "@/app/(dashboard)/dashboard/_lib/board-writes";
 import { revalidateBoardPaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
 
 export interface DeleteCompetitionIdeaBoardResult {
@@ -143,6 +148,7 @@ export async function createCompetitionIdeaBoard(
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseCreateCompetitionIdeaBoard(formData);
+        const idempotencyKey = requireIdempotencyKey(formData, "pembuatan board");
 
         if (!validationResult.success) {
             return {
@@ -154,8 +160,9 @@ export async function createCompetitionIdeaBoard(
         }
 
         const payload = createCompetitionIdeaBoardPayload(validationResult.data);
-        const boardId = await persistBoardWithSlots({
+        const boardWriteResult = await persistBoardWithSlots({
             userId: user.id,
+            idempotencyKey,
             title: payload.title,
             summary: payload.summary,
             competitionType: payload.competitionType,
@@ -165,19 +172,26 @@ export async function createCompetitionIdeaBoard(
             visibility: payload.visibility,
             slots: payload.slots,
         });
-        const supabase = await createServerSupabaseClient();
-        const draftDeleteResult = await supabase.from("board_drafts").delete().eq("user_id", user.id);
-
-        if (draftDeleteResult.error) {
-            throw new Error(`Board terpublikasi tetapi draft gagal dibersihkan: ${draftDeleteResult.error.message}`);
+        const boardId = boardWriteResult.boardId;
+        try {
+            if (!boardWriteResult.wasReplayed) {
+                await notifyMatchingCandidates({
+                    boardId,
+                    competitionType: payload.competitionType,
+                    creatorId: user.id,
+                    title: payload.title,
+                });
+            }
+        } catch (error) {
+            logServerError(
+                {
+                    action: "boards.notifyMatchingCandidates",
+                    userId: user.id,
+                    metadata: { boardId },
+                },
+                error,
+            );
         }
-
-        await notifyMatchingCandidates({
-            boardId,
-            competitionType: payload.competitionType,
-            creatorId: user.id,
-            title: payload.title,
-        });
 
         revalidateBoardPaths({ boardId });
         redirect("/dashboard/boards?created=1");
@@ -204,6 +218,7 @@ export async function updateCompetitionIdeaBoard(
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseUpdateCompetitionIdeaBoard(formData);
+        const idempotencyKey = requireIdempotencyKey(formData, "pembaruan board");
 
         if (!validationResult.success) {
             return {
@@ -215,50 +230,20 @@ export async function updateCompetitionIdeaBoard(
         }
 
         const payload = updateCompetitionIdeaBoardPayload(validationResult.data);
-        const supabase = await createServerSupabaseClient();
-        const { data, error } = await supabase
-            .from("competition_idea_boards")
-            .update({
-                title: payload.title,
-                summary: payload.summary,
-                competition_type: payload.competitionType,
-                description: payload.description,
-                deadline: payload.deadline,
-                required_skills: payload.requiredSkills,
-                visibility: payload.visibility,
-                status: payload.status,
-                closed_at: payload.status === "closed" ? new Date().toISOString() : null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", payload.id)
-            .eq("user_id", user.id)
-            .select("id")
-            .maybeSingle();
-
-        if (error) {
-            throw new Error(`Gagal memperbarui board ide lomba: ${error.message}`);
-        }
-        if (!data) {
-            throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
-        }
-
-        const deleteSlotsResult = await supabase.from("board_slots").delete().eq("board_id", payload.id);
-        if (deleteSlotsResult.error) {
-            throw new Error(`Gagal memperbarui slot board: ${deleteSlotsResult.error.message}`);
-        }
-
-        const insertSlotsResult = await supabase.from("board_slots").insert(
-            payload.slots.map((slot) => ({
-                board_id: payload.id,
-                role_name: slot.roleName,
-                slot_count: slot.slotCount,
-                required_skills: slot.requiredSkills,
-            })),
-        );
-
-        if (insertSlotsResult.error) {
-            throw new Error(`Gagal memperbarui slot board: ${insertSlotsResult.error.message}`);
-        }
+        await updateBoardWithSlots({
+            userId: user.id,
+            boardId: payload.id,
+            idempotencyKey,
+            title: payload.title,
+            summary: payload.summary,
+            competitionType: payload.competitionType,
+            description: payload.description,
+            deadline: payload.deadline,
+            requiredSkills: payload.requiredSkills,
+            visibility: payload.visibility,
+            status: payload.status,
+            slots: payload.slots,
+        });
 
         revalidateBoardPaths({ boardId: payload.id });
         redirect("/dashboard/boards?updated=1");

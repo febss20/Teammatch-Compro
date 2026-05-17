@@ -9,7 +9,6 @@ import {
     profileStepThreeInitialState,
     profileStepTwoInitialState,
 } from "@/lib/forms";
-import { ensureNotificationPreferences } from "@/lib/notifications/service";
 import { logServerError } from "@/lib/security/server-errors";
 import {
     safeParseProfileStepOne,
@@ -26,11 +25,13 @@ import type {
     ProfileStepTwoFieldName,
 } from "@/lib/types";
 import {
+    persistFullProfileUpdate,
     persistProfileStepOne,
     persistProfileStepThree,
     persistProfileStepTwo,
 } from "@/app/(dashboard)/dashboard/_lib/profile-writes";
 import { revalidateProfilePaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
+import { requireIdempotencyKey } from "@/lib/shared/idempotency";
 
 function getStringValue(formData: FormData, fieldName: string): string {
     const value = formData.get(fieldName);
@@ -39,6 +40,28 @@ function getStringValue(formData: FormData, fieldName: string): string {
 
 function getStringArrayValues(formData: FormData, fieldName: string): string[] {
     return formData.getAll(fieldName).filter((value): value is string => typeof value === "string");
+}
+
+function normalizeCustomProfileLabel(value: string): string {
+    return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getDeduplicatedCustomLabelValues(formData: FormData, fieldName: string): string[] {
+    const seen = new Set<string>();
+
+    return getStringArrayValues(formData, fieldName)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+        .filter((value) => {
+            const normalizedValue = normalizeCustomProfileLabel(value);
+
+            if (seen.has(normalizedValue)) {
+                return false;
+            }
+
+            seen.add(normalizedValue);
+            return true;
+        });
 }
 
 function getProfileStepOneValues(formData: FormData) {
@@ -122,6 +145,9 @@ export async function completeProfileStepTwo(
     try {
         const user = await requireUser();
         const validationResult = safeParseProfileStepTwo(formData);
+        const customSkills = getDeduplicatedCustomLabelValues(formData, "custom_skills");
+        const customCompetitionTypes = getDeduplicatedCustomLabelValues(formData, "custom_competition_types");
+        const idempotencyKey = requireIdempotencyKey(formData, "step dua profil");
 
         if (!validationResult.success) {
             return {
@@ -132,7 +158,12 @@ export async function completeProfileStepTwo(
             };
         }
 
-        await persistProfileStepTwo(user.id, validationResult.data);
+        await persistProfileStepTwo(user.id, {
+            ...validationResult.data,
+            custom_skills: customSkills,
+            custom_competition_types: customCompetitionTypes,
+            idempotency_key: idempotencyKey,
+        });
         revalidateProfilePaths();
 
         return {
@@ -159,6 +190,7 @@ export async function completeProfileStepThree(
     try {
         const user = await requireUser();
         const validationResult = safeParseProfileStepThree(formData);
+        const idempotencyKey = requireIdempotencyKey(formData, "step tiga profil");
 
         if (!validationResult.success) {
             return {
@@ -169,8 +201,14 @@ export async function completeProfileStepThree(
             };
         }
 
-        await persistProfileStepThree(user.id, validationResult.data, true);
-        await ensureNotificationPreferences(user.id);
+        await persistProfileStepThree(
+            user.id,
+            {
+                ...validationResult.data,
+                idempotency_key: idempotencyKey,
+            },
+            true,
+        );
         revalidateProfilePaths();
         redirect("/dashboard?profile=completed");
     } catch (error) {
@@ -196,6 +234,9 @@ export async function updateProfile(
     try {
         const user = await requireUser();
         const validationResult = safeParseUpdateProfile(formData);
+        const customSkills = getDeduplicatedCustomLabelValues(formData, "custom_skills");
+        const customCompetitionTypes = getDeduplicatedCustomLabelValues(formData, "custom_competition_types");
+        const idempotencyKey = requireIdempotencyKey(formData, "pembaruan profil");
 
         if (!validationResult.success) {
             return {
@@ -206,9 +247,16 @@ export async function updateProfile(
             };
         }
 
-        await persistProfileStepOne(user.id, validationResult.data);
-        await persistProfileStepTwo(user.id, validationResult.data);
-        await persistProfileStepThree(user.id, validationResult.data, true);
+        await persistFullProfileUpdate(
+            user.id,
+            {
+                ...validationResult.data,
+                custom_skills: customSkills,
+                custom_competition_types: customCompetitionTypes,
+                idempotency_key: idempotencyKey,
+            },
+            true,
+        );
         revalidateProfilePaths();
 
         return {

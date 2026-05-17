@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { updateCompetitionIdeaBoard } from "@/app/(dashboard)/dashboard/actions";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import {
     boardVisibilityOptions,
@@ -101,6 +102,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
     const [selectedCompetitionType, setSelectedCompetitionType] = useState<string>(initialCompetitionType);
     const [slots, setSlots] = useState<RoleSlotInput[]>(createInitialSlots(board));
     const [state, formAction, pending] = useActionState(updateCompetitionIdeaBoard, competitionIdeaBoardInitialState);
+    const { idempotencyKey } = useIdempotencyKey();
 
     const previewSkills = useMemo(
         () =>
@@ -115,6 +117,7 @@ export default function EditBoardForm({ board }: { board: CompetitionIdeaBoardRe
         <form action={formAction} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
                 <input type="hidden" name="id" value={board.id} />
+                <input type="hidden" name="idempotency_key" value={idempotencyKey} />
                 <input type="hidden" name="slots_json" value={serializeSlots(slots)} />
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 

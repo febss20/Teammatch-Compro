@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useEffect, useMemo } from "react";
 import { completeProfileStepOne, completeProfileStepThree, completeProfileStepTwo } from "@/app/(dashboard)/dashboard/actions";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { profileStepOneInitialState, profileStepThreeInitialState, profileStepTwoInitialState } from "@/lib/forms";
 import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 import { dashboardMonthLabels } from "@/lib/platform";
@@ -28,6 +29,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
         completeProfileStepThree,
         profileStepThreeInitialState,
     );
+    const { idempotencyKey: stepTwoIdempotencyKey, rotateIdempotencyKey: rotateStepTwoIdempotencyKey } = useIdempotencyKey();
+    const { idempotencyKey: stepThreeIdempotencyKey, rotateIdempotencyKey: rotateStepThreeIdempotencyKey } =
+        useIdempotencyKey();
 
     const customSkills = useMemo(
         () => (profile?.skills ?? []).filter((skill) => skill.slug.startsWith("custom-")),
@@ -88,13 +92,23 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
             return;
         }
 
+        rotateStepTwoIdempotencyKey();
+
         const timeoutId = window.setTimeout(() => {
             setMaxReachedStep((previous) => Math.max(previous, 3));
             setCurrentStep(3);
         }, 0);
 
         return () => window.clearTimeout(timeoutId);
-    }, [stepTwoState.success, stepTwoState.message]);
+    }, [rotateStepTwoIdempotencyKey, stepTwoState.success, stepTwoState.message]);
+
+    useEffect(() => {
+        if (!stepThreeState.success) {
+            return;
+        }
+
+        rotateStepThreeIdempotencyKey();
+    }, [rotateStepThreeIdempotencyKey, stepThreeState.success]);
 
     const totalSkills = selectedTaxonomySkillIds.size + customSkillsCount;
     const totalCompetitions = selectedTaxonomyCompetitionIds.size + customCompetitionsCount;
@@ -224,6 +238,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
                 {currentStep === 2 && (
                     <form action={stepTwoAction} className="grid gap-6">
+                        <input type="hidden" name="idempotency_key" value={stepTwoIdempotencyKey} />
                         <div className="space-y-3">
                             <div className="section-kicker w-fit">Skill & minat</div>
                             <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">PILIH SKILL DAN LOMBA</h2>
@@ -430,6 +445,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
                 {currentStep === 3 && (
                     <form action={stepThreeAction} className="grid gap-6">
+                        <input type="hidden" name="idempotency_key" value={stepThreeIdempotencyKey} />
                         <div className="space-y-3">
                             <div className="section-kicker w-fit">Availability & privasi</div>
                             <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">ATUR RITME KERJA ANDA</h2>
