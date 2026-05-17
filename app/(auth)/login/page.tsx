@@ -9,7 +9,19 @@ export const metadata: Metadata = {
     description: "Masuk ke dashboard TeamMatch untuk mengelola board ide lomba Anda.",
 };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+function getLoginErrorMessage(errorCode: string | undefined): string | null {
+    if (errorCode === "campus_email_required") {
+        return "Gunakan akun dengan email kampus .ac.id atau .edu yang sudah terverifikasi.";
+    }
+
+    if (errorCode === "oauth_failed") {
+        return "Login belum dapat diproses saat ini.";
+    }
+
+    return null;
+}
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
     const user = await getCurrentUser();
 
     if (user) {
@@ -18,6 +30,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
     const resolvedSearchParams = await searchParams;
     const nextPath = sanitizeNextPath(resolvedSearchParams.next);
+    const loginErrorMessage = getLoginErrorMessage(resolvedSearchParams.error);
 
     return (
         <div className="min-h-screen px-4 py-10 md:py-14">
@@ -62,6 +75,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                                 Gunakan email dan password Anda untuk membuka dashboard ide lomba.
                             </p>
                         </div>
+
+                        {loginErrorMessage && <div className="brutal-alert-error mb-6 text-sm">{loginErrorMessage}</div>}
 
                         <AuthLoginForm nextPath={nextPath} />
 

@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { markNotificationRead } from "@/app/(dashboard)/dashboard/actions";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
+import { sanitizeNotificationLinkPath } from "@/lib/notifications/contracts";
 import { notificationCategoryLabels } from "@/lib/platform";
 import type { NotificationRecord } from "@/lib/types";
 
@@ -16,37 +19,43 @@ export default function NotificationsList({ notifications, unreadCount }: Notifi
                 <p className="display-font text-2xl leading-none">Unread state</p>
                 <span className="brutal-chip bg-[var(--tm-accent)]">{unreadCount} belum dibaca</span>
             </div>
-            {notifications.map((notification) => (
-                <article key={notification.id} className="brutal-panel grid gap-4 bg-[var(--tm-paper-strong)] p-5">
-                    <div className="flex flex-wrap gap-3">
-                        <span className="brutal-chip bg-[var(--tm-accent-2)]">
-                            {notificationCategoryLabels[notification.category]}
-                        </span>
-                        <span className={`brutal-chip ${notification.isRead ? "bg-white" : "bg-[var(--tm-accent)]"}`}>
-                            {notification.isRead ? "Read" : "Unread"}
-                        </span>
-                    </div>
-                    <div>
-                        <h3 className="display-font text-3xl leading-none">{notification.title}</h3>
-                        <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">{notification.body}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                        {notification.linkPath && (
-                            <a href={notification.linkPath} className="brutal-button-secondary">
-                                Buka tautan
-                            </a>
-                        )}
-                        {!notification.isRead && (
-                            <form action={markNotificationRead}>
-                                <input type="hidden" name="notification_id" value={notification.id} />
-                                <button type="submit" className="brutal-button">
-                                    Tandai dibaca
-                                </button>
-                            </form>
-                        )}
-                    </div>
-                </article>
-            ))}
+            {notifications.map((notification) => {
+                const safeLinkPath = sanitizeNotificationLinkPath(notification.linkPath);
+
+                return (
+                    <article key={notification.id} className="brutal-panel grid gap-4 bg-[var(--tm-paper-strong)] p-5">
+                        <div className="flex flex-wrap gap-3">
+                            <span className="brutal-chip bg-[var(--tm-accent-2)]">
+                                {notificationCategoryLabels[notification.category]}
+                            </span>
+                            <span className={`brutal-chip ${notification.isRead ? "bg-white" : "bg-[var(--tm-accent)]"}`}>
+                                {notification.isRead ? "Read" : "Unread"}
+                            </span>
+                        </div>
+                        <div>
+                            <h3 className="display-font text-3xl leading-none">{notification.title}</h3>
+                            <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">{notification.body}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {safeLinkPath && (
+                                <Link href={safeLinkPath} className="brutal-button-secondary">
+                                    Buka tautan
+                                </Link>
+                            )}
+                            {!notification.isRead && (
+                                <form action={markNotificationRead}>
+                                    <input type="hidden" name="notification_id" value={notification.id} />
+                                    <PendingSubmitButton
+                                        className="brutal-button"
+                                        idleLabel="Tandai dibaca"
+                                        pendingLabel="Menandai..."
+                                    />
+                                </form>
+                            )}
+                        </div>
+                    </article>
+                );
+            })}
         </div>
     );
 }

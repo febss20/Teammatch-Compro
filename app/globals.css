@@ -8,6 +8,8 @@
 }
 
 :root {
+    --font-display-fallback: Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Medium", "Segoe UI", sans-serif;
+    --font-body-fallback: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
     --tm-paper: #f4efe4;
     --tm-paper-strong: #fff9ef;
     --tm-paper-muted: #e5dcc8;
@@ -100,12 +102,12 @@ select:focus-visible {
     }
 
     .display-font {
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         letter-spacing: 0.02em;
     }
 
     .body-font {
-        font-family: var(--font-body), sans-serif;
+        font-family: var(--font-body), var(--font-body-fallback), sans-serif;
     }
 
     .page-frame {
@@ -120,7 +122,7 @@ select:focus-visible {
         border: var(--tm-border) solid var(--tm-line);
         background: var(--tm-accent-2);
         padding: 0.65rem 1rem 0.55rem;
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         font-size: 0.85rem;
         line-height: 1;
         text-transform: uppercase;
@@ -165,7 +167,7 @@ select:focus-visible {
         background: var(--tm-accent);
         color: var(--tm-line);
         padding: 0.95rem 1.4rem 0.82rem;
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         font-size: 1rem;
         letter-spacing: 0.03em;
         text-transform: uppercase;
@@ -204,7 +206,7 @@ select:focus-visible {
         background: var(--tm-paper-strong);
         color: var(--tm-line);
         padding: 0.95rem 1.4rem 0.82rem;
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         font-size: 1rem;
         letter-spacing: 0.03em;
         text-transform: uppercase;
@@ -221,7 +223,7 @@ select:focus-visible {
         background: var(--tm-danger);
         color: var(--tm-paper-strong);
         padding: 0.95rem 1.4rem 0.82rem;
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         font-size: 1rem;
         letter-spacing: 0.03em;
         text-transform: uppercase;
@@ -256,7 +258,7 @@ select:focus-visible {
 
     .brutal-label {
         display: block;
-        font-family: var(--font-display), sans-serif;
+        font-family: var(--font-display), var(--font-display-fallback), sans-serif;
         font-size: 0.95rem;
         letter-spacing: 0.04em;
         text-transform: uppercase;

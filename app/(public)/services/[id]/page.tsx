@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { COMPETITIONS } from "@/lib/marketing/data";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
     return COMPETITIONS.map((item) => ({ id: item.id }));
 }

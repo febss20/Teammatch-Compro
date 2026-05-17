@@ -2,10 +2,13 @@
 
 import { useActionState, useState, useEffect, useMemo } from "react";
 import { completeProfileStepOne, completeProfileStepThree, completeProfileStepTwo } from "@/app/(dashboard)/dashboard/actions";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { profileStepOneInitialState, profileStepThreeInitialState, profileStepTwoInitialState } from "@/lib/forms";
+import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 import { dashboardMonthLabels } from "@/lib/platform";
+import { getStringArrayFormValue, getStringFormValue } from "@/lib/shared/form-values";
 import { ChipInput } from "@/components/dashboard/ChipInput";
-import type { CompetitionTypeRecord, DashboardMonth, ProfileRecord, SkillOption } from "@/lib/types";
+import type { CompetitionTypeRecord, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface ProfileSetupWizardProps {
     competitionTypes: CompetitionTypeRecord[];
@@ -26,6 +29,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
         completeProfileStepThree,
         profileStepThreeInitialState,
     );
+    const { idempotencyKey: stepTwoIdempotencyKey, rotateIdempotencyKey: rotateStepTwoIdempotencyKey } = useIdempotencyKey();
+    const { idempotencyKey: stepThreeIdempotencyKey, rotateIdempotencyKey: rotateStepThreeIdempotencyKey } =
+        useIdempotencyKey();
 
     const customSkills = useMemo(
         () => (profile?.skills ?? []).filter((skill) => skill.slug.startsWith("custom-")),
@@ -49,6 +55,16 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
     );
 
     const selectedMonths = useMemo(() => new Set(profile?.availableMonths ?? []), [profile?.availableMonths]);
+    const submittedSkillIds = getStringArrayFormValue(stepTwoState.values, "skills");
+    const submittedCompetitionIds = getStringArrayFormValue(stepTwoState.values, "competition_types");
+    const submittedCustomSkills = getStringArrayFormValue(stepTwoState.values, "custom_skills");
+    const submittedCustomCompetitions = getStringArrayFormValue(stepTwoState.values, "custom_competition_types");
+    const submittedAvailableMonths = getStringArrayFormValue(stepThreeState.values, "available_months");
+    const stepTwoCustomSkillLabels = submittedCustomSkills ?? customSkills.map((s) => s.label);
+    const stepTwoCustomCompetitionLabels = submittedCustomCompetitions ?? customCompetitions.map((c) => c.label);
+    const stepTwoSkillIds = submittedSkillIds ? new Set(submittedSkillIds) : savedTaxonomySkillIds;
+    const stepTwoCompetitionIds = submittedCompetitionIds ? new Set(submittedCompetitionIds) : savedTaxonomyCompetitionIds;
+    const stepThreeMonths = new Set(submittedAvailableMonths ?? Array.from(selectedMonths));
 
     const [selectedTaxonomySkillIds, setSelectedTaxonomySkillIds] = useState<Set<string>>(savedTaxonomySkillIds);
     const [selectedTaxonomyCompetitionIds, setSelectedTaxonomyCompetitionIds] =
@@ -76,16 +92,28 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
             return;
         }
 
+        rotateStepTwoIdempotencyKey();
+
         const timeoutId = window.setTimeout(() => {
             setMaxReachedStep((previous) => Math.max(previous, 3));
             setCurrentStep(3);
         }, 0);
 
         return () => window.clearTimeout(timeoutId);
-    }, [stepTwoState.success, stepTwoState.message]);
+    }, [rotateStepTwoIdempotencyKey, stepTwoState.success, stepTwoState.message]);
+
+    useEffect(() => {
+        if (!stepThreeState.success) {
+            return;
+        }
+
+        rotateStepThreeIdempotencyKey();
+    }, [rotateStepThreeIdempotencyKey, stepThreeState.success]);
 
     const totalSkills = selectedTaxonomySkillIds.size + customSkillsCount;
     const totalCompetitions = selectedTaxonomyCompetitionIds.size + customCompetitionsCount;
+    const isSkillLimitReached = totalSkills >= PROFILE_MAX_SKILLS;
+    const isCompetitionLimitReached = totalCompetitions >= PROFILE_MAX_COMPETITION_TYPES;
 
     return (
         <div className="brutal-stack">
@@ -131,7 +159,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="full_name"
                                     name="full_name"
                                     className="brutal-input"
-                                    defaultValue={profile?.fullName ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "full_name") ?? profile?.fullName ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "full_name") && (
@@ -148,7 +178,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="campus_name"
                                     name="campus_name"
                                     className="brutal-input"
-                                    defaultValue={profile?.campusName ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "campus_name") ?? profile?.campusName ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "campus_name") && (
@@ -165,7 +197,9 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     id="username"
                                     name="username"
                                     className="brutal-input"
-                                    defaultValue={profile?.username ?? ""}
+                                    defaultValue={
+                                        getStringFormValue(stepOneState.values, "username") ?? profile?.username ?? ""
+                                    }
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "username") && (
@@ -183,7 +217,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     name="bio"
                                     rows={4}
                                     className="brutal-textarea"
-                                    defaultValue={profile?.bio ?? ""}
+                                    defaultValue={getStringFormValue(stepOneState.values, "bio") ?? profile?.bio ?? ""}
                                     disabled={stepOnePending}
                                 />
                                 {firstError(stepOneState.fieldErrors, "bio") && (
@@ -204,6 +238,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
                 {currentStep === 2 && (
                     <form action={stepTwoAction} className="grid gap-6">
+                        <input type="hidden" name="idempotency_key" value={stepTwoIdempotencyKey} />
                         <div className="space-y-3">
                             <div className="section-kicker w-fit">Skill & minat</div>
                             <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">PILIH SKILL DAN LOMBA</h2>
@@ -215,44 +250,68 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             <div className="grid gap-3">
                                 <div className="flex items-center justify-between">
                                     <p className="brutal-label">Skill Utama Anda</p>
-                                    <span className="text-sm text-[var(--tm-muted)]">{totalSkills}/5</span>
+                                    <span
+                                        className={`text-sm ${
+                                            isSkillLimitReached
+                                                ? "font-semibold text-[var(--tm-danger)]"
+                                                : "text-[var(--tm-muted)]"
+                                        }`}
+                                    >
+                                        {totalSkills}/{PROFILE_MAX_SKILLS}
+                                    </span>
                                 </div>
+                                {isSkillLimitReached && (
+                                    <p className="text-sm font-semibold text-[var(--tm-muted)]">
+                                        Maksimal {PROFILE_MAX_SKILLS} skill. Hapus salah satu untuk menambahkan skill lain.
+                                    </p>
+                                )}
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {skills
                                         .filter((skill) => skill.label.toLowerCase() !== "lainnya")
-                                        .map((skill) => (
-                                            <label key={skill.id} className="brutal-panel-soft flex items-center gap-3 p-4">
-                                                <input
-                                                    type="checkbox"
-                                                    name="skills"
-                                                    value={skill.id}
-                                                    defaultChecked={savedTaxonomySkillIds.has(skill.id)}
-                                                    onChange={(e) => {
-                                                        const newSet = new Set(selectedTaxonomySkillIds);
-                                                        if (e.target.checked) {
-                                                            newSet.add(skill.id);
-                                                        } else {
-                                                            newSet.delete(skill.id);
-                                                        }
-                                                        setSelectedTaxonomySkillIds(newSet);
-                                                    }}
-                                                    disabled={stepTwoPending}
-                                                />
-                                                <span>
-                                                    <span className="display-font block text-xl leading-none">
-                                                        {skill.label}
+                                        .map((skill) => {
+                                            const isSelected = selectedTaxonomySkillIds.has(skill.id);
+                                            return (
+                                                <label
+                                                    key={skill.id}
+                                                    className={`brutal-panel-soft flex items-center gap-3 p-4 ${
+                                                        isSkillLimitReached && !isSelected ? "opacity-50" : ""
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        name="skills"
+                                                        value={skill.id}
+                                                        defaultChecked={stepTwoSkillIds.has(skill.id)}
+                                                        onChange={(e) => {
+                                                            const newSet = new Set(selectedTaxonomySkillIds);
+                                                            if (e.target.checked) {
+                                                                newSet.add(skill.id);
+                                                            } else {
+                                                                newSet.delete(skill.id);
+                                                            }
+                                                            setSelectedTaxonomySkillIds(newSet);
+                                                        }}
+                                                        disabled={stepTwoPending || (isSkillLimitReached && !isSelected)}
+                                                    />
+                                                    <span>
+                                                        <span className="display-font block text-xl leading-none">
+                                                            {skill.label}
+                                                        </span>
+                                                        <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
                                                     </span>
-                                                    <span className="text-sm text-[var(--tm-muted)]">{skill.category}</span>
-                                                </span>
-                                            </label>
-                                        ))}
+                                                </label>
+                                            );
+                                        })}
                                 </div>
 
                                 <label className="brutal-panel-soft flex items-center gap-3 p-4">
                                     <input
                                         type="checkbox"
                                         checked={showCustomSkills}
-                                        onChange={(e) => setShowCustomSkills(e.target.checked)}
+                                        onChange={(e) => {
+                                            setShowCustomSkills(e.target.checked);
+                                            setCustomSkillsCount(e.target.checked ? stepTwoCustomSkillLabels.length : 0);
+                                        }}
                                         disabled={stepTwoPending}
                                     />
                                     <span className="display-font text-xl leading-none">Lainnya</span>
@@ -263,10 +322,11 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                         name="custom_skills"
                                         label="Skill Custom"
                                         placeholder="Ketik skill lainnya, tekan Enter..."
-                                        maxItems={5}
+                                        maxItems={PROFILE_MAX_SKILLS}
                                         currentCount={selectedTaxonomySkillIds.size}
                                         disabled={stepTwoPending}
-                                        defaultItems={customSkills.map((s) => s.label)}
+                                        defaultItems={stepTwoCustomSkillLabels}
+                                        errorMessage={firstError(stepTwoState.fieldErrors, "custom_skills")}
                                         onItemsChange={(items) => setCustomSkillsCount(items.length)}
                                         helperText="Masukkan skill yang tidak ada di daftar pilihan."
                                     />
@@ -282,44 +342,68 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                             <div className="grid gap-3">
                                 <div className="flex items-center justify-between">
                                     <p className="brutal-label">Jenis Lomba Diminati</p>
-                                    <span className="text-sm text-[var(--tm-muted)]">{totalCompetitions}/5</span>
+                                    <span
+                                        className={`text-sm ${
+                                            isCompetitionLimitReached
+                                                ? "font-semibold text-[var(--tm-danger)]"
+                                                : "text-[var(--tm-muted)]"
+                                        }`}
+                                    >
+                                        {totalCompetitions}/{PROFILE_MAX_COMPETITION_TYPES}
+                                    </span>
                                 </div>
+                                {isCompetitionLimitReached && (
+                                    <p className="text-sm font-semibold text-[var(--tm-muted)]">
+                                        Maksimal {PROFILE_MAX_COMPETITION_TYPES} jenis lomba. Hapus salah satu untuk menambahkan
+                                        jenis lomba lain.
+                                    </p>
+                                )}
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {competitionTypes
                                         .filter((ct) => ct.label.toLowerCase() !== "lainnya")
-                                        .map((competitionType) => (
-                                            <label
-                                                key={competitionType.id}
-                                                className="brutal-panel-soft flex items-center gap-3 p-4"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    name="competition_types"
-                                                    value={competitionType.id}
-                                                    defaultChecked={savedTaxonomyCompetitionIds.has(competitionType.id)}
-                                                    onChange={(e) => {
-                                                        const newSet = new Set(selectedTaxonomyCompetitionIds);
-                                                        if (e.target.checked) {
-                                                            newSet.add(competitionType.id);
-                                                        } else {
-                                                            newSet.delete(competitionType.id);
-                                                        }
-                                                        setSelectedTaxonomyCompetitionIds(newSet);
-                                                    }}
-                                                    disabled={stepTwoPending}
-                                                />
-                                                <span className="display-font text-xl leading-none">
-                                                    {competitionType.label}
-                                                </span>
-                                            </label>
-                                        ))}
+                                        .map((competitionType) => {
+                                            const isSelected = selectedTaxonomyCompetitionIds.has(competitionType.id);
+                                            return (
+                                                <label
+                                                    key={competitionType.id}
+                                                    className={`brutal-panel-soft flex items-center gap-3 p-4 ${
+                                                        isCompetitionLimitReached && !isSelected ? "opacity-50" : ""
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        name="competition_types"
+                                                        value={competitionType.id}
+                                                        defaultChecked={stepTwoCompetitionIds.has(competitionType.id)}
+                                                        onChange={(e) => {
+                                                            const newSet = new Set(selectedTaxonomyCompetitionIds);
+                                                            if (e.target.checked) {
+                                                                newSet.add(competitionType.id);
+                                                            } else {
+                                                                newSet.delete(competitionType.id);
+                                                            }
+                                                            setSelectedTaxonomyCompetitionIds(newSet);
+                                                        }}
+                                                        disabled={stepTwoPending || (isCompetitionLimitReached && !isSelected)}
+                                                    />
+                                                    <span className="display-font text-xl leading-none">
+                                                        {competitionType.label}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
                                 </div>
 
                                 <label className="brutal-panel-soft flex items-center gap-3 p-4">
                                     <input
                                         type="checkbox"
                                         checked={showCustomCompetitions}
-                                        onChange={(e) => setShowCustomCompetitions(e.target.checked)}
+                                        onChange={(e) => {
+                                            setShowCustomCompetitions(e.target.checked);
+                                            setCustomCompetitionsCount(
+                                                e.target.checked ? stepTwoCustomCompetitionLabels.length : 0,
+                                            );
+                                        }}
                                         disabled={stepTwoPending}
                                     />
                                     <span className="display-font text-xl leading-none">Lainnya</span>
@@ -330,10 +414,11 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                         name="custom_competition_types"
                                         label="Jenis Lomba Custom"
                                         placeholder="Ketik jenis lomba lainnya, tekan Enter..."
-                                        maxItems={5}
+                                        maxItems={PROFILE_MAX_COMPETITION_TYPES}
                                         currentCount={selectedTaxonomyCompetitionIds.size}
                                         disabled={stepTwoPending}
-                                        defaultItems={customCompetitions.map((c) => c.label)}
+                                        defaultItems={stepTwoCustomCompetitionLabels}
+                                        errorMessage={firstError(stepTwoState.fieldErrors, "custom_competition_types")}
                                         onItemsChange={(items) => setCustomCompetitionsCount(items.length)}
                                         helperText="Masukkan jenis lomba yang tidak ada di daftar pilihan."
                                     />
@@ -360,6 +445,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
 
                 {currentStep === 3 && (
                     <form action={stepThreeAction} className="grid gap-6">
+                        <input type="hidden" name="idempotency_key" value={stepThreeIdempotencyKey} />
                         <div className="space-y-3">
                             <div className="section-kicker w-fit">Availability & privasi</div>
                             <h2 className="display-font text-5xl leading-[0.9] md:text-6xl">ATUR RITME KERJA ANDA</h2>
@@ -379,7 +465,7 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                                 type="checkbox"
                                                 name="available_months"
                                                 value={value}
-                                                defaultChecked={selectedMonths.has(value as DashboardMonth)}
+                                                defaultChecked={stepThreeMonths.has(value)}
                                                 disabled={stepThreePending}
                                             />
                                             <span className="display-font text-xl leading-none">{label}</span>
@@ -404,9 +490,18 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     min={1}
                                     max={80}
                                     className="brutal-input"
-                                    defaultValue={profile?.hoursPerWeek ?? 8}
+                                    defaultValue={
+                                        getStringFormValue(stepThreeState.values, "hours_per_week") ??
+                                        profile?.hoursPerWeek ??
+                                        8
+                                    }
                                     disabled={stepThreePending}
                                 />
+                                {firstError(stepThreeState.fieldErrors, "hours_per_week") && (
+                                    <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                        {firstError(stepThreeState.fieldErrors, "hours_per_week")}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
@@ -415,24 +510,41 @@ export default function ProfileSetupWizard({ competitionTypes, profile, skills }
                                     <select
                                         name="public_visibility"
                                         className="brutal-select"
-                                        defaultValue={profile?.visibility ?? "public"}
+                                        defaultValue={
+                                            getStringFormValue(stepThreeState.values, "public_visibility") ??
+                                            profile?.visibility ??
+                                            "public"
+                                        }
                                         disabled={stepThreePending}
                                     >
                                         <option value="public">Publik</option>
                                         <option value="private">Privat</option>
                                     </select>
+                                    {firstError(stepThreeState.fieldErrors, "public_visibility") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(stepThreeState.fieldErrors, "public_visibility")}
+                                        </p>
+                                    )}
                                 </label>
                                 <label className="brutal-panel-soft grid gap-3 p-4">
                                     <span className="brutal-label">Riwayat Lomba</span>
                                     <select
                                         name="show_competition_history"
                                         className="brutal-select"
-                                        defaultValue={profile?.showCompetitionHistory ? "true" : "false"}
+                                        defaultValue={
+                                            getStringFormValue(stepThreeState.values, "show_competition_history") ??
+                                            (profile?.showCompetitionHistory ? "true" : "false")
+                                        }
                                         disabled={stepThreePending}
                                     >
                                         <option value="true">Tampilkan</option>
                                         <option value="false">Sembunyikan</option>
                                     </select>
+                                    {firstError(stepThreeState.fieldErrors, "show_competition_history") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(stepThreeState.fieldErrors, "show_competition_history")}
+                                        </p>
+                                    )}
                                 </label>
                             </div>
                         </div>

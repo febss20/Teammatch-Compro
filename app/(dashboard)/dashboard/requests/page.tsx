@@ -1,6 +1,7 @@
 import JoinRequestComposer from "@/components/dashboard/JoinRequestComposer";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import DashboardRealtimeRefresh from "@/components/dashboard/DashboardRealtimeRefresh";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import { acceptJoinRequest, rejectJoinRequest } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getCandidateDiscovery, getJoinRequestsForUser } from "@/lib/dashboard/data";
@@ -72,9 +73,11 @@ export default async function RequestsPage({
                             {request.status === "pending" && (
                                 <form action={withdrawJoinRequest}>
                                     <input type="hidden" name="request_id" value={request.id} />
-                                    <button type="submit" className="brutal-button-secondary">
-                                        Tarik request
-                                    </button>
+                                    <PendingSubmitButton
+                                        className="brutal-button-secondary"
+                                        idleLabel="Tarik request"
+                                        pendingLabel="Menarik..."
+                                    />
                                 </form>
                             )}
                         </article>
@@ -105,15 +108,19 @@ export default async function RequestsPage({
                                 <div className="flex flex-wrap gap-3">
                                     <form action={acceptJoinRequest}>
                                         <input type="hidden" name="request_id" value={request.id} />
-                                        <button type="submit" className="brutal-button">
-                                            Terima
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button"
+                                            idleLabel="Terima"
+                                            pendingLabel="Memproses..."
+                                        />
                                     </form>
                                     <form action={rejectJoinRequest}>
                                         <input type="hidden" name="request_id" value={request.id} />
-                                        <button type="submit" className="brutal-button-danger">
-                                            Tolak
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button-danger"
+                                            idleLabel="Tolak"
+                                            pendingLabel="Memproses..."
+                                        />
                                     </form>
                                 </div>
                             )}

@@ -6,6 +6,7 @@ import TeamResourceForm from "@/components/dashboard/TeamResourceForm";
 import TeamRenameForm from "@/components/dashboard/TeamRenameForm";
 import TeamResultForm from "@/components/dashboard/TeamResultForm";
 import TestimonialForm from "@/components/dashboard/TestimonialForm";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
 import { reopenExpiredSlot, sendCommitmentReminder } from "@/app/(dashboard)/dashboard/actions";
 import { requireCompletedProfile } from "@/lib/auth";
 import {
@@ -17,6 +18,7 @@ import {
     getTeamTestimonials,
 } from "@/lib/dashboard/data";
 import { formatDashboardDate, formatDashboardDateTime } from "@/lib/shared/formatters";
+import { sanitizeTeamResourceUrl } from "@/lib/team/validation";
 
 function formatActivityLabel(eventType: string): string {
     if (eventType === "application_accepted") {
@@ -228,17 +230,21 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                                                 <div className="grid gap-3">
                                                     <form action={sendCommitmentReminder}>
                                                         <input type="hidden" name="team_member_id" value={member.id} />
-                                                        <button type="submit" className="brutal-button-secondary w-full">
-                                                            Kirim reminder
-                                                        </button>
+                                                        <PendingSubmitButton
+                                                            className="brutal-button-secondary w-full"
+                                                            idleLabel="Kirim reminder"
+                                                            pendingLabel="Mengirim..."
+                                                        />
                                                     </form>
 
                                                     {isExpired && (
                                                         <form action={reopenExpiredSlot}>
                                                             <input type="hidden" name="team_member_id" value={member.id} />
-                                                            <button type="submit" className="brutal-button-danger w-full">
-                                                                Buka ulang slot
-                                                            </button>
+                                                            <PendingSubmitButton
+                                                                className="brutal-button-danger w-full"
+                                                                idleLabel="Buka ulang slot"
+                                                                pendingLabel="Memproses..."
+                                                            />
                                                         </form>
                                                     )}
                                                 </div>
@@ -264,17 +270,34 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                         <p className="display-font text-3xl leading-none">Resource Tim</p>
                         <div className="mt-4 grid gap-3">
                             {resources.length > 0 ? (
-                                resources.map((resource) => (
-                                    <a
-                                        key={resource.id}
-                                        href={resource.url ?? "#"}
-                                        target={resource.url ? "_blank" : undefined}
-                                        rel={resource.url ? "noreferrer" : undefined}
-                                        className="brutal-button-secondary"
-                                    >
-                                        {resource.label} / {resource.resourceType}
-                                    </a>
-                                ))
+                                resources.map((resource) => {
+                                    const safeResourceUrl = sanitizeTeamResourceUrl(resource.url);
+
+                                    if (!safeResourceUrl) {
+                                        return (
+                                            <div key={resource.id} className="brutal-panel-soft p-4">
+                                                <p className="display-font text-xl leading-none">
+                                                    {resource.label} / {resource.resourceType}
+                                                </p>
+                                                <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
+                                                    URL resource belum tersedia.
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <a
+                                            key={resource.id}
+                                            href={safeResourceUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="brutal-button-secondary"
+                                        >
+                                            {resource.label} / {resource.resourceType}
+                                        </a>
+                                    );
+                                })
                             ) : (
                                 <div className="brutal-panel-soft p-4">
                                     <p className="text-sm leading-7 text-[var(--tm-muted)]">

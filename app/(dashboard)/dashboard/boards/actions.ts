@@ -13,15 +13,42 @@ import {
     updateCompetitionIdeaBoardPayload,
 } from "@/lib/boards/validation";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
+import { logServerError } from "@/lib/security/server-errors";
 import { getFieldErrors } from "@/lib/shared/action-utils";
+import { requireIdempotencyKey } from "@/lib/shared/idempotency";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CompetitionIdeaBoardFieldName, FormActionState } from "@/lib/types";
-import { notifyMatchingCandidates, persistBoardWithSlots } from "@/app/(dashboard)/dashboard/_lib/board-writes";
+import {
+    notifyMatchingCandidates,
+    persistBoardWithSlots,
+    updateBoardWithSlots,
+} from "@/app/(dashboard)/dashboard/_lib/board-writes";
 import { revalidateBoardPaths } from "@/app/(dashboard)/dashboard/_lib/revalidation";
 
 export interface DeleteCompetitionIdeaBoardResult {
     formError: string | null;
     success: boolean;
+}
+
+function getStringValue(formData: FormData, fieldName: string): string {
+    const value = formData.get(fieldName);
+    return typeof value === "string" ? value : "";
+}
+
+function getBoardFormValues(formData: FormData) {
+    return {
+        competition_type_other: getStringValue(formData, "competition_type_other"),
+        competition_type_select: getStringValue(formData, "competition_type_select"),
+        deadline: getStringValue(formData, "deadline"),
+        description: getStringValue(formData, "description"),
+        id: getStringValue(formData, "id"),
+        required_skills: getStringValue(formData, "required_skills"),
+        slots_json: getStringValue(formData, "slots_json"),
+        status: getStringValue(formData, "status"),
+        summary: getStringValue(formData, "summary"),
+        title: getStringValue(formData, "title"),
+        visibility: getStringValue(formData, "visibility"),
+    };
 }
 
 export async function saveBoardDraft(formData: FormData): Promise<void> {
@@ -59,40 +86,50 @@ export async function saveBoardDraft(formData: FormData): Promise<void> {
             ? competitionTypeOther
             : competitionTypeSelect || null;
 
-    const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from("board_drafts").upsert(
-        {
-            user_id: user.id,
-            title: title.length > 0 ? title : null,
-            summary: summary.length > 0 ? summary : null,
-            competition_type: competitionType,
-            description: description.length > 0 ? description : null,
-            deadline: deadline.length > 0 ? deadline : null,
-            required_skills: requiredSkills,
-            visibility,
-            slots,
-            updated_at: new Date().toISOString(),
-        },
-        {
-            onConflict: "user_id",
-        },
-    );
+    try {
+        const supabase = await createServerSupabaseClient();
+        const { error } = await supabase.from("board_drafts").upsert(
+            {
+                user_id: user.id,
+                title: title.length > 0 ? title : null,
+                summary: summary.length > 0 ? summary : null,
+                competition_type: competitionType,
+                description: description.length > 0 ? description : null,
+                deadline: deadline.length > 0 ? deadline : null,
+                required_skills: requiredSkills,
+                visibility,
+                slots,
+                updated_at: new Date().toISOString(),
+            },
+            {
+                onConflict: "user_id",
+            },
+        );
 
-    if (error) {
-        throw new Error(`Gagal menyimpan draft board: ${error.message}`);
+        if (error) {
+            throw new Error(`Gagal menyimpan draft board: ${error.message}`);
+        }
+    } catch (error) {
+        logServerError({ action: "boards.saveDraft", userId: user.id }, error);
+        throw new Error("Draft board belum dapat disimpan saat ini.");
     }
 }
 
 export async function discardBoardDraft(): Promise<void> {
     const { user } = await requireCompletedProfile();
-    const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from("board_drafts").delete().eq("user_id", user.id);
+    try {
+        const supabase = await createServerSupabaseClient();
+        const { error } = await supabase.from("board_drafts").delete().eq("user_id", user.id);
 
-    if (error) {
-        throw new Error(`Gagal menghapus draft board: ${error.message}`);
+        if (error) {
+            throw new Error(`Gagal menghapus draft board: ${error.message}`);
+        }
+
+        revalidateBoardPaths({ boardId: null });
+    } catch (error) {
+        logServerError({ action: "boards.discardDraft", userId: user.id }, error);
+        throw new Error("Draft board belum dapat dihapus saat ini.");
     }
-
-    revalidateBoardPaths({ boardId: null });
 }
 
 export async function publishBoardFromDraft(
@@ -106,21 +143,26 @@ export async function createCompetitionIdeaBoard(
     _previousState: FormActionState<CompetitionIdeaBoardFieldName>,
     formData: FormData,
 ): Promise<FormActionState<CompetitionIdeaBoardFieldName>> {
+    const values = getBoardFormValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseCreateCompetitionIdeaBoard(formData);
+        const idempotencyKey = requireIdempotencyKey(formData, "pembuatan board");
 
         if (!validationResult.success) {
             return {
                 ...competitionIdeaBoardInitialState,
                 formError: "Periksa kembali field board yang masih belum valid.",
                 fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(validationResult.error),
+                values,
             };
         }
 
         const payload = createCompetitionIdeaBoardPayload(validationResult.data);
-        const boardId = await persistBoardWithSlots({
+        const boardWriteResult = await persistBoardWithSlots({
             userId: user.id,
+            idempotencyKey,
             title: payload.title,
             summary: payload.summary,
             competitionType: payload.competitionType,
@@ -130,19 +172,26 @@ export async function createCompetitionIdeaBoard(
             visibility: payload.visibility,
             slots: payload.slots,
         });
-        const supabase = await createServerSupabaseClient();
-        const draftDeleteResult = await supabase.from("board_drafts").delete().eq("user_id", user.id);
-
-        if (draftDeleteResult.error) {
-            throw new Error(`Board terpublikasi tetapi draft gagal dibersihkan: ${draftDeleteResult.error.message}`);
+        const boardId = boardWriteResult.boardId;
+        try {
+            if (!boardWriteResult.wasReplayed) {
+                await notifyMatchingCandidates({
+                    boardId,
+                    competitionType: payload.competitionType,
+                    creatorId: user.id,
+                    title: payload.title,
+                });
+            }
+        } catch (error) {
+            logServerError(
+                {
+                    action: "boards.notifyMatchingCandidates",
+                    userId: user.id,
+                    metadata: { boardId },
+                },
+                error,
+            );
         }
-
-        await notifyMatchingCandidates({
-            boardId,
-            competitionType: payload.competitionType,
-            creatorId: user.id,
-            title: payload.title,
-        });
 
         revalidateBoardPaths({ boardId });
         redirect("/dashboard/boards?created=1");
@@ -151,9 +200,11 @@ export async function createCompetitionIdeaBoard(
             throw error;
         }
 
+        logServerError({ action: "boards.createCompetitionIdeaBoard" }, error);
         return {
             ...competitionIdeaBoardInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan ide lomba.",
+            formError: "Ide lomba belum dapat disimpan saat ini.",
+            values,
         };
     }
 }
@@ -162,63 +213,37 @@ export async function updateCompetitionIdeaBoard(
     _previousState: FormActionState<CompetitionIdeaBoardFieldName>,
     formData: FormData,
 ): Promise<FormActionState<CompetitionIdeaBoardFieldName>> {
+    const values = getBoardFormValues(formData);
+
     try {
         const { user } = await requireCompletedProfile();
         const validationResult = safeParseUpdateCompetitionIdeaBoard(formData);
+        const idempotencyKey = requireIdempotencyKey(formData, "pembaruan board");
 
         if (!validationResult.success) {
             return {
                 ...competitionIdeaBoardInitialState,
                 formError: "Periksa kembali field board yang masih belum valid.",
                 fieldErrors: getFieldErrors<CompetitionIdeaBoardFieldName>(validationResult.error),
+                values,
             };
         }
 
         const payload = updateCompetitionIdeaBoardPayload(validationResult.data);
-        const supabase = await createServerSupabaseClient();
-        const { data, error } = await supabase
-            .from("competition_idea_boards")
-            .update({
-                title: payload.title,
-                summary: payload.summary,
-                competition_type: payload.competitionType,
-                description: payload.description,
-                deadline: payload.deadline,
-                required_skills: payload.requiredSkills,
-                visibility: payload.visibility,
-                status: payload.status,
-                closed_at: payload.status === "closed" ? new Date().toISOString() : null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", payload.id)
-            .eq("user_id", user.id)
-            .select("id")
-            .maybeSingle();
-
-        if (error) {
-            throw new Error(`Gagal memperbarui board ide lomba: ${error.message}`);
-        }
-        if (!data) {
-            throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
-        }
-
-        const deleteSlotsResult = await supabase.from("board_slots").delete().eq("board_id", payload.id);
-        if (deleteSlotsResult.error) {
-            throw new Error(`Gagal memperbarui slot board: ${deleteSlotsResult.error.message}`);
-        }
-
-        const insertSlotsResult = await supabase.from("board_slots").insert(
-            payload.slots.map((slot) => ({
-                board_id: payload.id,
-                role_name: slot.roleName,
-                slot_count: slot.slotCount,
-                required_skills: slot.requiredSkills,
-            })),
-        );
-
-        if (insertSlotsResult.error) {
-            throw new Error(`Gagal memperbarui slot board: ${insertSlotsResult.error.message}`);
-        }
+        await updateBoardWithSlots({
+            userId: user.id,
+            boardId: payload.id,
+            idempotencyKey,
+            title: payload.title,
+            summary: payload.summary,
+            competitionType: payload.competitionType,
+            description: payload.description,
+            deadline: payload.deadline,
+            requiredSkills: payload.requiredSkills,
+            visibility: payload.visibility,
+            status: payload.status,
+            slots: payload.slots,
+        });
 
         revalidateBoardPaths({ boardId: payload.id });
         redirect("/dashboard/boards?updated=1");
@@ -227,9 +252,11 @@ export async function updateCompetitionIdeaBoard(
             throw error;
         }
 
+        logServerError({ action: "boards.updateCompetitionIdeaBoard" }, error);
         return {
             ...competitionIdeaBoardInitialState,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui ide lomba.",
+            formError: "Ide lomba belum dapat diperbarui saat ini.",
+            values,
         };
     }
 }
@@ -273,9 +300,10 @@ export async function deleteCompetitionIdeaBoard(formData: FormData): Promise<De
             throw error;
         }
 
+        logServerError({ action: "boards.deleteCompetitionIdeaBoard" }, error);
         return {
             success: false,
-            formError: error instanceof Error ? error.message : "Terjadi kesalahan saat menghapus ide lomba.",
+            formError: "Ide lomba belum dapat dihapus saat ini.",
         };
     }
 }
@@ -288,25 +316,30 @@ export async function closeBoardRecruitment(formData: FormData): Promise<void> {
         throw new Error(validationResult.error.issues[0]?.message ?? "ID board ide tidak valid.");
     }
 
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-        .from("competition_idea_boards")
-        .update({
-            status: "closed",
-            closed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", validationResult.data.id)
-        .eq("user_id", user.id)
-        .select("id")
-        .maybeSingle();
+    try {
+        const supabase = await createServerSupabaseClient();
+        const { data, error } = await supabase
+            .from("competition_idea_boards")
+            .update({
+                status: "closed",
+                closed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", validationResult.data.id)
+            .eq("user_id", user.id)
+            .select("id")
+            .maybeSingle();
 
-    if (error) {
-        throw new Error(`Gagal menutup rekrutmen board: ${error.message}`);
-    }
-    if (!data) {
-        throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
-    }
+        if (error) {
+            throw new Error(`Gagal menutup rekrutmen board: ${error.message}`);
+        }
+        if (!data) {
+            throw new Error("Board ide tidak ditemukan atau Anda tidak memiliki akses.");
+        }
 
-    revalidateBoardPaths({ boardId: validationResult.data.id });
+        revalidateBoardPaths({ boardId: validationResult.data.id });
+    } catch (error) {
+        logServerError({ action: "boards.closeRecruitment", userId: user.id }, error);
+        throw new Error("Rekrutmen board belum dapat ditutup saat ini.");
+    }
 }

@@ -1,9 +1,34 @@
 import { NextResponse } from "next/server";
+import { assertRateLimit, getClientIpFromRequest, RateLimitError } from "@/lib/security/rate-limit";
+import { logServerError } from "@/lib/security/server-errors";
+import { TurnstileValidationError, verifyTurnstileToken } from "@/lib/security/turnstile";
 import { contactPayloadSchema } from "@/lib/shared/contact-validation";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+
+interface ContactRequestBody {
+    email?: unknown;
+    message?: unknown;
+    name?: unknown;
+    turnstileToken?: unknown;
+}
 
 export async function POST(request: Request) {
+    const clientIp = getClientIpFromRequest(request);
     try {
-        const body = await request.json();
+        await assertRateLimit({
+            limitCount: 5,
+            scope: "contact",
+            subject: `ip:${clientIp}`,
+            windowSeconds: 600,
+        });
+
+        let body: ContactRequestBody;
+        try {
+            body = (await request.json()) as ContactRequestBody;
+        } catch {
+            return NextResponse.json({ error: "Payload kontak tidak valid." }, { status: 400 });
+        }
+
         const validationResult = contactPayloadSchema.safeParse(body);
 
         if (!validationResult.success) {
@@ -16,18 +41,36 @@ export async function POST(request: Request) {
             );
         }
 
-        console.log("New contact message:", {
-            name: validationResult.data.name,
+        await verifyTurnstileToken({
+            remoteIp: clientIp,
+            token: typeof body.turnstileToken === "string" ? body.turnstileToken : null,
+        });
+
+        const supabase = createAdminSupabaseClient();
+        const { error } = await supabase.from("contact_messages").insert({
             email: validationResult.data.email,
             message: validationResult.data.message,
-            timestamp: new Date().toISOString(),
+            name: validationResult.data.name,
         });
+
+        if (error) {
+            throw new Error(`Gagal menyimpan pesan kontak: ${error.message}`);
+        }
 
         return NextResponse.json({
             success: true,
             message: "Pesan berhasil diterima.",
         });
-    } catch {
-        return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return NextResponse.json({ error: error.message }, { status: 429 });
+        }
+
+        if (error instanceof TurnstileValidationError) {
+            return NextResponse.json({ error: "Verifikasi keamanan gagal." }, { status: 400 });
+        }
+
+        logServerError({ action: "contact.submit" }, error);
+        return NextResponse.json({ error: "Pesan belum bisa diproses saat ini." }, { status: 500 });
     }
 }

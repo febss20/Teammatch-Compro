@@ -2,6 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { isCampusEmail } from "@/lib/auth/email";
 import { getProfileRecord } from "@/lib/profile/data";
 import type { ProfileRecord } from "@/lib/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -11,6 +12,11 @@ export async function getCurrentUser(): Promise<User | null> {
     const {
         data: { user },
     } = await supabase.auth.getUser();
+
+    if (user?.email && !isCampusEmail(user.email)) {
+        await supabase.auth.signOut();
+        return null;
+    }
 
     return user;
 }

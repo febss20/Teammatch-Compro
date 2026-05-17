@@ -1,10 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { saveCandidate, unsaveCandidate } from "@/app/(dashboard)/dashboard/actions";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import PendingSubmitButton from "@/components/shared/PendingSubmitButton";
+import { dashboardMonthOptions } from "@/lib/types";
 import type { CandidateRecord, CompetitionTypeRecord, ProfileRecord, SkillOption } from "@/lib/types";
 
 interface CandidateDiscoveryProps {
@@ -17,6 +20,37 @@ interface CandidateDiscoveryProps {
 
 function firstParam(value: string | string[] | undefined) {
     return Array.isArray(value) ? value[0] : value;
+}
+
+function buildSearchParamsFromQuery(currentQuery: Record<string, string | string[] | undefined>): URLSearchParams {
+    const params = new URLSearchParams();
+
+    Object.entries(currentQuery).forEach(([key, value]) => {
+        const normalizedValue = firstParam(value)?.trim() ?? "";
+
+        if (normalizedValue.length > 0) {
+            params.set(key, normalizedValue);
+        }
+    });
+
+    return params;
+}
+
+function getProfileInitials(profile: ProfileRecord): string {
+    const source = profile.fullName ?? profile.username ?? "TM";
+    return source
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
+}
+
+function clearTimeoutRef(timeoutRef: React.MutableRefObject<number | null>) {
+    if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+    }
 }
 
 export default function CandidateDiscovery({
@@ -39,6 +73,27 @@ export default function CandidateDiscovery({
     const sort = firstParam(currentQuery.sort) ?? "compatibility";
     const queryTimeoutRef = useRef<number | null>(null);
     const campusTimeoutRef = useRef<number | null>(null);
+    const hoursTimeoutRef = useRef<number | null>(null);
+    const normalizedSearchParams = useMemo(() => buildSearchParamsFromQuery(currentQuery), [currentQuery]);
+
+    useEffect(() => {
+        const currentSearch = searchParams.toString();
+        const nextSearch = normalizedSearchParams.toString();
+
+        if (currentSearch === nextSearch) {
+            return;
+        }
+
+        router.replace(nextSearch.length > 0 ? `${pathname}?${nextSearch}` : pathname, { scroll: false });
+    }, [normalizedSearchParams, pathname, router, searchParams]);
+
+    useEffect(() => {
+        return () => {
+            clearTimeoutRef(queryTimeoutRef);
+            clearTimeoutRef(campusTimeoutRef);
+            clearTimeoutRef(hoursTimeoutRef);
+        };
+    }, []);
 
     function replaceSearchParams(nextEntries: Record<string, string>) {
         const params = new URLSearchParams(searchParams.toString());
@@ -53,6 +108,33 @@ export default function CandidateDiscovery({
 
         const nextQuery = params.toString();
         router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    }
+
+    function replaceSearchParamsDebounced(
+        timeoutRef: React.MutableRefObject<number | null>,
+        nextEntries: Record<string, string>,
+    ) {
+        clearTimeoutRef(timeoutRef);
+        timeoutRef.current = window.setTimeout(() => {
+            replaceSearchParams(nextEntries);
+            timeoutRef.current = null;
+        }, 250);
+    }
+
+    function resetFilters() {
+        clearTimeoutRef(queryTimeoutRef);
+        clearTimeoutRef(campusTimeoutRef);
+        clearTimeoutRef(hoursTimeoutRef);
+
+        replaceSearchParams({
+            q: "",
+            campus: "",
+            skills: "",
+            competition_types: "",
+            availability_month: "",
+            hours_per_week_min: "",
+            sort: "compatibility",
+        });
     }
 
     const sortedCandidates = useMemo(() => {
@@ -83,14 +165,7 @@ export default function CandidateDiscovery({
                         className="brutal-input"
                         list="skill-suggestions"
                         onChange={(event) => {
-                            if (queryTimeoutRef.current) {
-                                window.clearTimeout(queryTimeoutRef.current);
-                            }
-
-                            const nextValue = event.target.value;
-                            queryTimeoutRef.current = window.setTimeout(() => {
-                                replaceSearchParams({ q: nextValue });
-                            }, 250);
+                            replaceSearchParamsDebounced(queryTimeoutRef, { q: event.target.value });
                         }}
                     />
                     <select
@@ -125,30 +200,31 @@ export default function CandidateDiscovery({
                         defaultValue={selectedCampus}
                         placeholder="Filter kampus"
                         className="brutal-input"
-                        onChange={(event) => {
-                            if (campusTimeoutRef.current) {
-                                window.clearTimeout(campusTimeoutRef.current);
-                            }
-
-                            const nextValue = event.target.value;
-                            campusTimeoutRef.current = window.setTimeout(() => {
-                                replaceSearchParams({ campus: nextValue });
-                            }, 250);
-                        }}
+                        onChange={(event) => replaceSearchParamsDebounced(campusTimeoutRef, { campus: event.target.value })}
                     />
-                    <input
+                    <select
                         name="availability_month"
                         value={selectedMonth}
-                        placeholder="Bulan, contoh: jul"
-                        className="brutal-input"
+                        className="brutal-select"
                         onChange={(event) => replaceSearchParams({ availability_month: event.target.value })}
-                    />
+                    >
+                        <option value="">Semua bulan availability</option>
+                        {dashboardMonthOptions.map((month) => (
+                            <option key={month} value={month}>
+                                {month.toUpperCase()}
+                            </option>
+                        ))}
+                    </select>
                     <input
+                        key={`hours-${selectedHours}`}
                         name="hours_per_week_min"
-                        value={selectedHours}
+                        defaultValue={selectedHours}
                         placeholder="Min jam / minggu"
                         className="brutal-input"
-                        onChange={(event) => replaceSearchParams({ hours_per_week_min: event.target.value })}
+                        inputMode="numeric"
+                        onChange={(event) =>
+                            replaceSearchParamsDebounced(hoursTimeoutRef, { hours_per_week_min: event.target.value })
+                        }
                     />
                     <select
                         name="sort"
@@ -161,21 +237,7 @@ export default function CandidateDiscovery({
                         <option value="availability">Sort: Availability</option>
                         <option value="latest">Sort: Terbaru</option>
                     </select>
-                    <button
-                        type="button"
-                        className="brutal-button"
-                        onClick={() =>
-                            replaceSearchParams({
-                                q: "",
-                                campus: "",
-                                skills: "",
-                                competition_types: "",
-                                availability_month: "",
-                                hours_per_week_min: "",
-                                sort: "compatibility",
-                            })
-                        }
-                    >
+                    <button type="button" className="brutal-button" onClick={resetFilters}>
                         Reset Filter
                     </button>
                 </div>
@@ -191,9 +253,9 @@ export default function CandidateDiscovery({
                     sortedCandidates.map((candidate) => (
                         <article
                             key={candidate.profile.id}
-                            className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-6 lg:grid-cols-[1fr_auto]"
+                            className="brutal-panel grid gap-5 bg-[var(--tm-paper-strong)] p-6 lg:grid-cols-[minmax(0,1fr)_240px]"
                         >
-                            <div className="space-y-4">
+                            <div className="min-w-0 space-y-4">
                                 <div className="flex flex-wrap gap-3">
                                     <span className="brutal-chip bg-[var(--tm-accent-2)]">
                                         {candidate.compatibilityScore}% match
@@ -206,13 +268,32 @@ export default function CandidateDiscovery({
                                     </span>
                                 </div>
 
-                                <div>
-                                    <h3 className="display-font text-4xl leading-none">
-                                        {candidate.profile.fullName ?? candidate.profile.username ?? "Kandidat"}
-                                    </h3>
-                                    <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
-                                        {candidate.profile.bio ?? "Bio belum tersedia."}
-                                    </p>
+                                <div className="flex gap-4">
+                                    <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[var(--tm-line)] bg-[var(--tm-paper)]">
+                                        <div className="min-w-0">
+                                            {candidate.profile.avatarUrl ? (
+                                                <Image
+                                                    src={candidate.profile.avatarUrl}
+                                                    alt=""
+                                                    width={64}
+                                                    height={64}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="display-font text-2xl leading-none">
+                                                    {getProfileInitials(candidate.profile) || "TM"}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="display-font text-4xl leading-none">
+                                            {candidate.profile.fullName ?? candidate.profile.username ?? "Kandidat"}
+                                        </h3>
+                                        <p className="mt-3 text-base leading-8 text-[var(--tm-muted)] break-words">
+                                            {candidate.profile.bio ?? "Bio belum tersedia."}
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
@@ -268,16 +349,20 @@ export default function CandidateDiscovery({
                                 {candidate.savedByViewer ? (
                                     <form action={unsaveCandidate}>
                                         <input type="hidden" name="target_profile_id" value={candidate.profile.id} />
-                                        <button type="submit" className="brutal-button-secondary w-full">
-                                            Hapus simpan
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button-secondary w-full"
+                                            idleLabel="Hapus simpan"
+                                            pendingLabel="Menghapus..."
+                                        />
                                     </form>
                                 ) : (
                                     <form action={saveCandidate}>
                                         <input type="hidden" name="target_profile_id" value={candidate.profile.id} />
-                                        <button type="submit" className="brutal-button-secondary w-full">
-                                            Simpan kandidat
-                                        </button>
+                                        <PendingSubmitButton
+                                            className="brutal-button-secondary w-full"
+                                            idleLabel="Simpan kandidat"
+                                            pendingLabel="Menyimpan..."
+                                        />
                                     </form>
                                 )}
                                 <Link

@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { campusEmailMessage, isCampusEmail, normalizeEmail } from "@/lib/auth/email";
 
-const emailSchema = z.email("Alamat email tidak valid.").transform((value: string) => value.trim().toLowerCase());
+const emailSchema = z
+    .email("Alamat email tidak valid.")
+    .transform((value: string) => normalizeEmail(value))
+    .refine((value) => isCampusEmail(value), campusEmailMessage);
 
 const passwordSchema = z.string().trim().min(8, "Password minimal 8 karakter.").max(128, "Password maksimal 128 karakter.");
 

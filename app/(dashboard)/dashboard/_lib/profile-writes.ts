@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { insertPrivacyAuditEvent } from "@/app/(dashboard)/dashboard/_lib/privacy";
+import { PROFILE_MAX_COMPETITION_TYPES, PROFILE_MAX_SKILLS } from "@/lib/profile/constants";
 
 export async function persistProfileStepOne(
     userId: string,
@@ -25,85 +25,37 @@ export async function persistProfileStepOne(
 
 export async function persistProfileStepTwo(
     userId: string,
-    payload: { skills: string[]; custom_skills: string[]; competition_types: string[]; custom_competition_types: string[] },
+    payload: {
+        skills: string[];
+        custom_skills: string[];
+        competition_types: string[];
+        custom_competition_types: string[];
+        idempotency_key: string;
+    },
 ): Promise<void> {
+    const skillTotal = payload.skills.length + payload.custom_skills.length;
+    const competitionTotal = payload.competition_types.length + payload.custom_competition_types.length;
+
+    if (skillTotal < 1 || skillTotal > PROFILE_MAX_SKILLS) {
+        throw new Error(`Total skill profil harus 1 sampai ${PROFILE_MAX_SKILLS}.`);
+    }
+
+    if (competitionTotal < 1 || competitionTotal > PROFILE_MAX_COMPETITION_TYPES) {
+        throw new Error(`Total jenis lomba profil harus 1 sampai ${PROFILE_MAX_COMPETITION_TYPES}.`);
+    }
+
     const supabase = await createServerSupabaseClient();
-    const [deleteSkillsResult, deleteCompetitionsResult, deleteCustomSkillsResult, deleteCustomCompetitionsResult] =
-        await Promise.all([
-            supabase.from("profile_skills").delete().eq("profile_id", userId),
-            supabase.from("profile_competition_preferences").delete().eq("profile_id", userId),
-            supabase.from("profile_custom_skills").delete().eq("profile_id", userId),
-            supabase.from("profile_custom_competition_type").delete().eq("profile_id", userId),
-        ]);
+    const { error } = await supabase.rpc("replace_profile_step_two_idempotent", {
+        p_user_id: userId,
+        p_skills: payload.skills,
+        p_custom_skills: payload.custom_skills,
+        p_competition_types: payload.competition_types,
+        p_custom_competition_types: payload.custom_competition_types,
+        p_idempotency_key: payload.idempotency_key,
+    });
 
-    if (deleteSkillsResult.error) {
-        throw new Error(`Gagal merapikan skill profil: ${deleteSkillsResult.error.message}`);
-    }
-
-    if (deleteCompetitionsResult.error) {
-        throw new Error(`Gagal merapikan minat lomba: ${deleteCompetitionsResult.error.message}`);
-    }
-
-    if (deleteCustomSkillsResult.error) {
-        throw new Error(`Gagal merapikan skill custom: ${deleteCustomSkillsResult.error.message}`);
-    }
-
-    if (deleteCustomCompetitionsResult.error) {
-        throw new Error(`Gagal merapikan lomba custom: ${deleteCustomCompetitionsResult.error.message}`);
-    }
-
-    if (payload.skills.length > 0) {
-        const { error } = await supabase.from("profile_skills").insert(
-            payload.skills.map((skillId) => ({
-                profile_id: userId,
-                skill_id: skillId,
-            })),
-        );
-
-        if (error) {
-            throw new Error(`Gagal menyimpan skill profil: ${error.message}`);
-        }
-    }
-
-    if (payload.custom_skills.length > 0) {
-        const { error } = await supabase.from("profile_custom_skills").insert(
-            payload.custom_skills.map((label) => ({
-                profile_id: userId,
-                label,
-                normalized_label: label.trim().toLowerCase().replace(/\s+/g, " "),
-            })),
-        );
-
-        if (error) {
-            throw new Error(`Gagal menyimpan skill custom: ${error.message}`);
-        }
-    }
-
-    if (payload.competition_types.length > 0) {
-        const { error } = await supabase.from("profile_competition_preferences").insert(
-            payload.competition_types.map((competitionTypeId) => ({
-                profile_id: userId,
-                competition_type_id: competitionTypeId,
-            })),
-        );
-
-        if (error) {
-            throw new Error(`Gagal menyimpan minat lomba: ${error.message}`);
-        }
-    }
-
-    if (payload.custom_competition_types.length > 0) {
-        const { error } = await supabase.from("profile_custom_competition_type").insert(
-            payload.custom_competition_types.map((label) => ({
-                profile_id: userId,
-                label,
-                normalized_label: label.trim().toLowerCase().replace(/\s+/g, " "),
-            })),
-        );
-
-        if (error) {
-            throw new Error(`Gagal menyimpan jenis lomba custom: ${error.message}`);
-        }
+    if (error) {
+        throw new Error(`Gagal menyimpan step dua profil secara atomik: ${error.message}`);
     }
 }
 
@@ -112,57 +64,79 @@ export async function persistProfileStepThree(
     payload: {
         available_months: string[];
         hours_per_week: number;
+        idempotency_key: string;
         public_visibility: "public" | "private";
         show_competition_history: boolean;
     },
     completeProfile: boolean,
 ): Promise<void> {
     const supabase = await createServerSupabaseClient();
-    const { data: currentProfile, error: currentProfileError } = await supabase
-        .from("profiles")
-        .select("public_visibility, show_competition_history")
-        .eq("id", userId)
-        .single();
+    const { error } = await supabase.rpc("save_profile_step_three_atomic_idempotent", {
+        p_user_id: userId,
+        p_available_months: payload.available_months,
+        p_hours_per_week: payload.hours_per_week,
+        p_idempotency_key: payload.idempotency_key,
+        p_public_visibility: payload.public_visibility === "public",
+        p_show_competition_history: payload.show_competition_history,
+        p_complete_profile: completeProfile,
+    });
 
-    if (currentProfileError) {
-        throw new Error(`Gagal memuat pengaturan privasi saat ini: ${currentProfileError.message}`);
+    if (error) {
+        throw new Error(`Gagal menyimpan step tiga profil secara atomik: ${error.message}`);
+    }
+}
+
+export async function persistFullProfileUpdate(
+    userId: string,
+    payload: {
+        full_name: string;
+        campus_name: string;
+        username: string;
+        bio: string;
+        skills: string[];
+        custom_skills: string[];
+        competition_types: string[];
+        custom_competition_types: string[];
+        available_months: string[];
+        hours_per_week: number;
+        idempotency_key: string;
+        public_visibility: "public" | "private";
+        show_competition_history: boolean;
+    },
+    completeProfile: boolean,
+): Promise<void> {
+    const skillTotal = payload.skills.length + payload.custom_skills.length;
+    const competitionTotal = payload.competition_types.length + payload.custom_competition_types.length;
+
+    if (skillTotal < 1 || skillTotal > PROFILE_MAX_SKILLS) {
+        throw new Error(`Total skill profil harus 1 sampai ${PROFILE_MAX_SKILLS}.`);
     }
 
-    const [availabilityResult, profileResult] = await Promise.all([
-        supabase.from("profile_availability").upsert({
-            profile_id: userId,
-            available_months: payload.available_months,
-            hours_per_week: payload.hours_per_week,
-            updated_at: new Date().toISOString(),
-        }),
-        supabase
-            .from("profiles")
-            .update({
-                public_visibility: payload.public_visibility === "public",
-                show_competition_history: payload.show_competition_history,
-                profile_completed_at: completeProfile ? new Date().toISOString() : undefined,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", userId),
-    ]);
-
-    if (availabilityResult.error) {
-        throw new Error(`Gagal menyimpan availability profil: ${availabilityResult.error.message}`);
+    if (competitionTotal < 1 || competitionTotal > PROFILE_MAX_COMPETITION_TYPES) {
+        throw new Error(`Total jenis lomba profil harus 1 sampai ${PROFILE_MAX_COMPETITION_TYPES}.`);
     }
 
-    if (profileResult.error) {
-        throw new Error(`Gagal menyimpan pengaturan profil: ${profileResult.error.message}`);
-    }
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.rpc("update_profile_atomic_idempotent", {
+        p_user_id: userId,
+        p_full_name: payload.full_name,
+        p_campus_name: payload.campus_name,
+        p_username: payload.username,
+        p_bio: payload.bio,
+        p_skills: payload.skills,
+        p_custom_skills: payload.custom_skills,
+        p_competition_types: payload.competition_types,
+        p_custom_competition_types: payload.custom_competition_types,
+        p_available_months: payload.available_months,
+        p_hours_per_week: payload.hours_per_week,
+        p_idempotency_key: payload.idempotency_key,
+        p_public_visibility: payload.public_visibility === "public",
+        p_show_competition_history: payload.show_competition_history,
+        p_complete_profile: completeProfile,
+    });
 
-    if (
-        currentProfile.public_visibility !== (payload.public_visibility === "public") ||
-        currentProfile.show_competition_history !== payload.show_competition_history
-    ) {
-        await insertPrivacyAuditEvent(userId, "profile_privacy_updated", {
-            public_visibility: payload.public_visibility,
-            show_competition_history: payload.show_competition_history,
-            completed_profile: completeProfile,
-        });
+    if (error) {
+        throw new Error(`Gagal memperbarui profil secara atomik: ${error.message}`);
     }
 }
 

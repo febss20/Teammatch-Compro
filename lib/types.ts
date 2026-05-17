@@ -48,6 +48,7 @@ export type BoardApplicationStatus = (typeof boardApplicationStatusOptions)[numb
 export type TeamMemberStatus = (typeof teamMemberStatusOptions)[number];
 export type NotificationCategory = (typeof notificationCategoryOptions)[number];
 export type DashboardMonth = (typeof dashboardMonthOptions)[number];
+export type ProfileAvatarSource = "none" | "oauth" | "manual";
 
 export interface SkillOption {
     id: string;
@@ -66,10 +67,16 @@ export interface CompetitionTypeRecord {
 export interface ProfileRecord {
     id: string;
     email?: string | null;
+    avatarSource: ProfileAvatarSource;
+    avatarUpdatedAt: string | null;
+    avatarUrl: string | null;
     fullName: string | null;
     campusName: string | null;
     username: string | null;
     bio: string | null;
+    emailDomain: string | null;
+    manualAvatarPath: string | null;
+    oauthAvatarUrl: string | null;
     visibility: ProfileVisibility;
     showCompetitionHistory: boolean;
     profileCompletedAt: string | null;
@@ -310,9 +317,12 @@ export type TeamResultFieldName = "team_id" | "result_summary" | "competition_en
 export type TestimonialFieldName = "team_id" | "target_profile_id" | "rating" | "body" | "testimonial_id";
 export type TeamResourceFieldName = "team_id" | "resource_type" | "label" | "url";
 
-export interface FormActionState<FieldName extends string> {
+export type FormFieldValue = boolean | number | string | string[] | null;
+
+export interface FormActionState<FieldName extends string, Values extends object = Partial<Record<FieldName, FormFieldValue>>> {
     success: boolean;
     message: string;
     formError: string | null;
     fieldErrors: Partial<Record<FieldName, string[]>>;
+    values?: Partial<Values>;
 }

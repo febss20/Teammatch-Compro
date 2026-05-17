@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { discardBoardDraft, publishBoardFromDraft, saveBoardDraft } from "@/app/(dashboard)/dashboard/actions";
+import { useIdempotencyKey } from "@/components/shared/useIdempotencyKey";
 import { competitionIdeaBoardInitialState } from "@/lib/forms";
 import { boardRoleOptions, competitionTypeOptions, type BoardDraftRecord, type CompetitionTypeRecord } from "@/lib/types";
 import { boardVisibilityLabels, competitionTypeLabels } from "@/lib/platform";
@@ -184,6 +185,7 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
     const [draftFeedback, setDraftFeedback] = useState<string>(draft ? "Draft sebelumnya dipulihkan." : "Mulai board baru.");
     const lastAutosavedSnapshotRef = useRef<string>(JSON.stringify(createInitialComposerState(draft)));
     const [state, formAction, pending] = useActionState(publishBoardFromDraft, competitionIdeaBoardInitialState);
+    const { idempotencyKey } = useIdempotencyKey();
 
     const previewSkills = useMemo(
         () =>
@@ -221,6 +223,7 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
         event.preventDefault();
 
         const formData = buildComposerFormData(composerState);
+        formData.set("idempotency_key", idempotencyKey);
         startTransition(() => {
             void formAction(formData);
         });
@@ -230,6 +233,7 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
         <form onSubmit={handleSubmit} className="brutal-stack">
             <div className="brutal-panel grid gap-8 bg-[var(--tm-paper-strong)] p-6 md:p-8">
                 <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
+                <input type="hidden" name="idempotency_key" value={idempotencyKey} />
                 <input type="hidden" name="slots_json" value={serializeSlots(composerState.slots)} />
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -592,6 +596,11 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                             {firstError(state.fieldErrors, "slots_json")}
                                         </p>
                                     )}
+                                    {firstError(state.fieldErrors, "required_skills") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "required_skills")}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2">
@@ -614,6 +623,11 @@ export default function CreateBoardForm({ competitionTypes, draft }: CreateBoard
                                         <option value="public">Publik</option>
                                         <option value="private">Privat</option>
                                     </select>
+                                    {firstError(state.fieldErrors, "visibility") && (
+                                        <p className="text-sm font-semibold text-[var(--tm-danger)]">
+                                            {firstError(state.fieldErrors, "visibility")}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 

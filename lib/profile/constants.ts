@@ -1,0 +1,2 @@
+export const PROFILE_MAX_COMPETITION_TYPES = 5;
+export const PROFILE_MAX_SKILLS = 5;

@@ -24,6 +24,13 @@ export interface GalleryPhoto {
     color: string;
 }
 
+export type GalleryFetchStatus = "empty" | "error" | "missing_config" | "ready";
+
+export interface GalleryPhotosResult {
+    photos: GalleryPhoto[];
+    status: GalleryFetchStatus;
+}
+
 interface UnsplashSearchResponse {
     total: number;
     total_pages: number;
@@ -32,16 +39,25 @@ interface UnsplashSearchResponse {
 
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
 
-export async function getGalleryPhotos(
-    query: string = "hackathon competition",
-    perPage: number = 9,
-    options?: { graceful?: boolean },
-): Promise<GalleryPhoto[]> {
-    const graceful = options?.graceful === true;
+function mapGalleryPhoto(photo: UnsplashPhoto): GalleryPhoto {
+    return {
+        id: photo.id,
+        url: photo.urls.regular,
+        thumb: photo.urls.small,
+        alt: photo.alt_description || "Competition photo",
+        photographer: photo.user.name,
+        photographerUrl: photo.user.links.html,
+        location: photo.location?.title || null,
+        color: photo.color,
+    };
+}
 
+export async function getGalleryPhotosResult(query: string, perPage: number): Promise<GalleryPhotosResult> {
     if (!UNSPLASH_ACCESS_KEY) {
-        if (graceful) return [];
-        throw new Error("Unsplash API key not configured");
+        return {
+            photos: [],
+            status: "missing_config",
+        };
     }
 
     try {
@@ -56,23 +72,47 @@ export async function getGalleryPhotos(
         );
 
         if (!res.ok) {
-            throw new Error(`Unsplash API error: ${res.status}`);
+            return {
+                photos: [],
+                status: "error",
+            };
         }
 
         const data: UnsplashSearchResponse = await res.json();
+        const photos = data.results.map(mapGalleryPhoto);
 
-        return data.results.map((photo) => ({
-            id: photo.id,
-            url: photo.urls.regular,
-            thumb: photo.urls.small,
-            alt: photo.alt_description || "Competition photo",
-            photographer: photo.user.name,
-            photographerUrl: photo.user.links.html,
-            location: photo.location?.title || null,
-            color: photo.color,
-        }));
+        return {
+            photos,
+            status: photos.length > 0 ? "ready" : "empty",
+        };
     } catch {
-        if (graceful) return [];
-        throw new Error("Failed to fetch gallery photos");
+        return {
+            photos: [],
+            status: "error",
+        };
     }
+}
+
+export async function getGalleryPhotos(
+    query: string,
+    perPage: number,
+    options?: { graceful?: boolean },
+): Promise<GalleryPhoto[]> {
+    const graceful = options?.graceful === true;
+
+    const result = await getGalleryPhotosResult(query, perPage);
+
+    if (result.status === "ready" || result.status === "empty") {
+        return result.photos;
+    }
+
+    if (graceful) {
+        return [];
+    }
+
+    if (result.status === "missing_config") {
+        throw new Error("Unsplash API key not configured");
+    }
+
+    throw new Error("Failed to fetch gallery photos");
 }

@@ -297,6 +297,7 @@ export type Database = {
                 Row: {
                     closed_at: string | null;
                     competition_type: string;
+                    creation_request_id: string | null;
                     created_at: string;
                     deadline: string;
                     description: string;
@@ -315,6 +316,7 @@ export type Database = {
                 Insert: {
                     closed_at?: string | null;
                     competition_type: string;
+                    creation_request_id?: string | null;
                     created_at?: string;
                     deadline: string;
                     description: string;
@@ -333,6 +335,7 @@ export type Database = {
                 Update: {
                     closed_at?: string | null;
                     competition_type?: string;
+                    creation_request_id?: string | null;
                     created_at?: string;
                     deadline?: string;
                     description?: string;
@@ -385,6 +388,30 @@ export type Database = {
                     recommended_skills?: string[];
                     slug?: string;
                     sort_order?: number;
+                };
+                Relationships: [];
+            };
+            contact_messages: {
+                Row: {
+                    created_at: string;
+                    email: string;
+                    id: string;
+                    message: string;
+                    name: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    email: string;
+                    id?: string;
+                    message: string;
+                    name: string;
+                };
+                Update: {
+                    created_at?: string;
+                    email?: string;
+                    id?: string;
+                    message?: string;
+                    name?: string;
                 };
                 Relationships: [];
             };
@@ -527,6 +554,47 @@ export type Database = {
                         foreignKeyName: "notification_preferences_user_id_fkey";
                         columns: ["user_id"];
                         isOneToOne: true;
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                ];
+            };
+            notification_delivery_failures: {
+                Row: {
+                    attempted_at: string;
+                    category: string;
+                    channel: string;
+                    error_message: string;
+                    event_type: string;
+                    id: number;
+                    payload: Json;
+                    target_user_id: string;
+                };
+                Insert: {
+                    attempted_at?: string;
+                    category: string;
+                    channel: string;
+                    error_message: string;
+                    event_type: string;
+                    id?: never;
+                    payload?: Json;
+                    target_user_id: string;
+                };
+                Update: {
+                    attempted_at?: string;
+                    category?: string;
+                    channel?: string;
+                    error_message?: string;
+                    event_type?: string;
+                    id?: never;
+                    payload?: Json;
+                    target_user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "notification_delivery_failures_target_user_id_fkey";
+                        columns: ["target_user_id"];
+                        isOneToOne: false;
                         referencedRelation: "profiles";
                         referencedColumns: ["id"];
                     },
@@ -763,11 +831,16 @@ export type Database = {
             };
             profiles: {
                 Row: {
+                    avatar_source: string;
+                    avatar_updated_at: string | null;
                     bio: string | null;
                     campus_name: string | null;
                     created_at: string;
+                    email_domain: string | null;
                     full_name: string | null;
                     id: string;
+                    manual_avatar_path: string | null;
+                    oauth_avatar_url: string | null;
                     profile_completed_at: string | null;
                     public_visibility: boolean;
                     show_competition_history: boolean;
@@ -777,11 +850,16 @@ export type Database = {
                     verified_at: string | null;
                 };
                 Insert: {
+                    avatar_source?: string;
+                    avatar_updated_at?: string | null;
                     bio?: string | null;
                     campus_name?: string | null;
                     created_at?: string;
+                    email_domain?: string | null;
                     full_name?: string | null;
                     id: string;
+                    manual_avatar_path?: string | null;
+                    oauth_avatar_url?: string | null;
                     profile_completed_at?: string | null;
                     public_visibility?: boolean;
                     show_competition_history?: boolean;
@@ -791,11 +869,16 @@ export type Database = {
                     verified_at?: string | null;
                 };
                 Update: {
+                    avatar_source?: string;
+                    avatar_updated_at?: string | null;
                     bio?: string | null;
                     campus_name?: string | null;
                     created_at?: string;
+                    email_domain?: string | null;
                     full_name?: string | null;
                     id?: string;
+                    manual_avatar_path?: string | null;
+                    oauth_avatar_url?: string | null;
                     profile_completed_at?: string | null;
                     public_visibility?: boolean;
                     show_competition_history?: boolean;
@@ -1225,6 +1308,89 @@ export type Database = {
                     accepted_team_id: string;
                 }[];
             };
+            confirm_team_commitment: {
+                Args: { p_hours_per_week: number; p_team_member_id: string };
+                Returns: {
+                    all_members_confirmed: boolean;
+                    confirmed_team_id: string;
+                    confirmed_team_name: string;
+                    creator_user_id: string;
+                }[];
+            };
+            consume_rate_limit: {
+                Args: {
+                    p_limit_count: number;
+                    p_scope: string;
+                    p_subject_hash: string;
+                    p_window_seconds: number;
+                };
+                Returns: {
+                    allowed: boolean;
+                    remaining: number;
+                    reset_at: string;
+                }[];
+            };
+            create_board_with_slots: {
+                Args: {
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            create_board_with_slots_idempotent: {
+                Args: {
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_idempotency_key: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                    was_replayed: boolean;
+                }[];
+            };
+            create_board_application: {
+                Args: {
+                    p_actor_name: string;
+                    p_board_id: string;
+                    p_board_slot_id: string | null;
+                    p_message: string;
+                    p_selected_role: string;
+                    p_skill_match_score: number;
+                };
+                Returns: {
+                    application_id: string;
+                    owner_user_id: string;
+                }[];
+            };
+            create_join_request: {
+                Args: {
+                    p_actor_name: string;
+                    p_board_id: string | null;
+                    p_message: string;
+                    p_selected_role: string;
+                    p_target_profile_id: string;
+                };
+                Returns: {
+                    request_id: string;
+                    target_profile_id: string;
+                }[];
+            };
             is_profile_teammate: {
                 Args: { target_profile_id: string };
                 Returns: boolean;
@@ -1232,6 +1398,14 @@ export type Database = {
             is_team_creator: { Args: { target_team_id: string }; Returns: boolean };
             is_team_member: { Args: { target_team_id: string }; Returns: boolean };
             is_team_viewer: { Args: { target_team_id: string }; Returns: boolean };
+            reject_board_application: {
+                Args: { p_application_id: string };
+                Returns: {
+                    applicant_id: string;
+                    application_id: string;
+                    board_id: string;
+                }[];
+            };
             record_team_result_and_history: {
                 Args: {
                     p_actor_user_id: string;
@@ -1246,6 +1420,89 @@ export type Database = {
                     team_result_id: string;
                 }[];
             };
+            reopen_expired_slot: {
+                Args: { p_team_member_id: string };
+                Returns: {
+                    reopened_board_id: string | null;
+                    reopened_role_name: string;
+                    reopened_team_id: string;
+                    reopened_team_name: string;
+                }[];
+            };
+            replace_profile_step_two: {
+                Args: {
+                    p_competition_types: string[];
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_skills: string[];
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            replace_profile_step_two_idempotent: {
+                Args: {
+                    p_competition_types: string[];
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_idempotency_key: string;
+                    p_skills: string[];
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            respond_join_request: {
+                Args: { p_request_id: string; p_status: string };
+                Returns: {
+                    requester_user_id: string;
+                    request_id: string;
+                    response_status: string;
+                    target_profile_id: string;
+                }[];
+            };
+            run_dashboard_maintenance: {
+                Args: Record<PropertyKey, never>;
+                Returns: number;
+            };
+            save_board_application_for_review: {
+                Args: { p_application_id: string };
+                Returns: {
+                    applicant_id: string;
+                    application_id: string;
+                    board_id: string;
+                }[];
+            };
+            save_profile_step_three_atomic: {
+                Args: {
+                    p_available_months: string[];
+                    p_complete_profile: boolean;
+                    p_hours_per_week: number;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            save_profile_step_three_atomic_idempotent: {
+                Args: {
+                    p_available_months: string[];
+                    p_complete_profile: boolean;
+                    p_hours_per_week: number;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            send_commitment_reminder: {
+                Args: { p_team_member_id: string };
+                Returns: {
+                    reminder_profile_id: string;
+                    reminder_role_name: string;
+                    reminder_team_id: string;
+                    reminder_team_name: string;
+                }[];
+            };
             sync_legacy_team_data: {
                 Args: { target_board_id: string };
                 Returns: {
@@ -1255,6 +1512,120 @@ export type Database = {
                     processed_board_id: string;
                     relinked_application_count: number;
                     synced_member_count: number;
+                }[];
+            };
+            update_board_with_slots: {
+                Args: {
+                    p_board_id: string;
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_status: string;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            update_board_with_slots_idempotent: {
+                Args: {
+                    p_board_id: string;
+                    p_competition_type: string;
+                    p_deadline: string;
+                    p_description: string;
+                    p_idempotency_key: string;
+                    p_required_skills: string[];
+                    p_slots: Json;
+                    p_status: string;
+                    p_summary: string;
+                    p_title: string;
+                    p_user_id: string;
+                    p_visibility: string;
+                };
+                Returns: {
+                    board_id: string;
+                }[];
+            };
+            update_profile_atomic: {
+                Args: {
+                    p_available_months: string[];
+                    p_bio: string;
+                    p_campus_name: string;
+                    p_competition_types: string[];
+                    p_complete_profile: boolean;
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_full_name: string;
+                    p_hours_per_week: number;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_skills: string[];
+                    p_user_id: string;
+                    p_username: string;
+                };
+                Returns: undefined;
+            };
+            update_profile_atomic_idempotent: {
+                Args: {
+                    p_available_months: string[];
+                    p_bio: string;
+                    p_campus_name: string;
+                    p_competition_types: string[];
+                    p_complete_profile: boolean;
+                    p_custom_competition_types: string[];
+                    p_custom_skills: string[];
+                    p_full_name: string;
+                    p_hours_per_week: number;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_show_competition_history: boolean;
+                    p_skills: string[];
+                    p_user_id: string;
+                    p_username: string;
+                };
+                Returns: undefined;
+            };
+            update_settings_atomic: {
+                Args: {
+                    p_board_updates: boolean;
+                    p_commitment_updates: boolean;
+                    p_public_visibility: boolean;
+                    p_reminder_updates: boolean;
+                    p_request_updates: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            update_settings_atomic_idempotent: {
+                Args: {
+                    p_board_updates: boolean;
+                    p_commitment_updates: boolean;
+                    p_idempotency_key: string;
+                    p_public_visibility: boolean;
+                    p_reminder_updates: boolean;
+                    p_request_updates: boolean;
+                    p_show_competition_history: boolean;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            withdraw_board_application: {
+                Args: { p_application_id: string };
+                Returns: {
+                    application_id: string;
+                    board_id: string;
+                }[];
+            };
+            withdraw_join_request: {
+                Args: { p_request_id: string };
+                Returns: {
+                    withdrawn_request_id: string;
                 }[];
             };
         };

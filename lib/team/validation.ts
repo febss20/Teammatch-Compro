@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+export function sanitizeTeamResourceUrl(value: string | null | undefined): string | null {
+    if (!value) {
+        return null;
+    }
+
+    const trimmedValue = value.trim();
+    if (trimmedValue.length === 0) {
+        return null;
+    }
+
+    try {
+        const parsedUrl = new URL(trimmedValue);
+        return parsedUrl.protocol === "https:" ? parsedUrl.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
 export const commitmentSchema = z.object({
     team_member_id: z.uuid("Anggota tim tidak valid."),
     hours_per_week: z.coerce
@@ -45,7 +63,12 @@ export const teamResourceSchema = z.object({
     label: z.string().trim().min(3, "Label resource minimal 3 karakter.").max(80, "Label resource maksimal 80 karakter."),
     url: z.preprocess(
         (value) => (typeof value === "string" ? value.trim() : ""),
-        z.string().url("URL resource tidak valid.").or(z.literal("")),
+        z
+            .string()
+            .refine(
+                (value: string) => value.length === 0 || sanitizeTeamResourceUrl(value) !== null,
+                "URL resource harus memakai https:// yang valid.",
+            ),
     ),
 });
 

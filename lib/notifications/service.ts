@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/security/server-errors";
 import type { Database } from "@/lib/supabase/database.types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -75,12 +76,64 @@ function createNotificationLogContext(event: NotificationEvent): {
     };
 }
 
-function warnNotificationFailure(error: unknown, event: NotificationEvent, channel: "server" | "admin"): void {
-    console.warn("Dashboard notification delivery failed", {
+async function persistNotificationFailure(
+    error: unknown,
+    event: NotificationEvent,
+    channel: "server" | "admin",
+): Promise<void> {
+    const payload = createNotificationPayload(event);
+    const supabase = createAdminSupabaseClient();
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const { error: insertError } = await supabase.from("notification_delivery_failures").insert({
+        category: payload.category,
         channel,
-        ...createNotificationLogContext(event),
-        error: error instanceof Error ? error.message : String(error),
+        error_message: errorMessage,
+        event_type: event.type,
+        payload: {
+            body: payload.body,
+            linkPath: payload.linkPath,
+            title: payload.title,
+        },
+        target_user_id: payload.userId,
     });
+
+    if (insertError) {
+        throw new Error(`Gagal menyimpan audit kegagalan notifikasi: ${insertError.message}`);
+    }
+}
+
+async function handleNotificationFailure(error: unknown, event: NotificationEvent, channel: "server" | "admin"): Promise<void> {
+    const context = createNotificationLogContext(event);
+
+    try {
+        await persistNotificationFailure(error, event, channel);
+    } catch (persistError) {
+        logServerError(
+            {
+                action: "notifications.persistFailure",
+                metadata: {
+                    category: context.category,
+                    channel,
+                    eventType: context.eventType,
+                    userId: context.userId,
+                },
+            },
+            persistError,
+        );
+    }
+
+    logServerError(
+        {
+            action: "notifications.delivery",
+            metadata: {
+                category: context.category,
+                channel,
+                eventType: context.eventType,
+                userId: context.userId,
+            },
+        },
+        error,
+    );
 }
 
 export async function ensureNotificationPreferences(userId: string): Promise<void> {
@@ -100,7 +153,7 @@ export async function sendServerNotification(event: NotificationEvent): Promise<
         const supabase = createAdminSupabaseClient();
         await insertNotificationFromEvent(supabase, event);
     } catch (error) {
-        warnNotificationFailure(error, event, "server");
+        await handleNotificationFailure(error, event, "server");
     }
 }
 
@@ -113,7 +166,7 @@ export async function sendAdminNotificationSafely(event: NotificationEvent): Pro
     try {
         await sendAdminNotification(event);
     } catch (error) {
-        warnNotificationFailure(error, event, "admin");
+        await handleNotificationFailure(error, event, "admin");
     }
 }
 

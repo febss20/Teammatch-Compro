@@ -4,6 +4,7 @@ import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import DashboardLogoutButton from "@/components/dashboard/DashboardLogoutButton";
 import { requireCompletedProfile } from "@/lib/auth";
 import { getDashboardSnapshot, getOwnBoards } from "@/lib/dashboard/data";
+import { sanitizeNotificationLinkPath } from "@/lib/notifications/contracts";
 
 function getStatusMessage(searchParams: { profile?: string }): string | null {
     if (searchParams.profile === "completed") {
@@ -115,16 +116,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         </p>
                         <div className="mt-4 grid gap-3">
                             {snapshot.notifications.length > 0 ? (
-                                snapshot.notifications.map((notification) => (
-                                    <Link
-                                        key={notification.id}
-                                        href={notification.linkPath ?? "/dashboard"}
-                                        className="brutal-panel-soft block p-4"
-                                    >
-                                        <p className="display-font text-xl leading-none">{notification.title}</p>
-                                        <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">{notification.body}</p>
-                                    </Link>
-                                ))
+                                snapshot.notifications.map((notification) => {
+                                    const safeLinkPath = sanitizeNotificationLinkPath(notification.linkPath);
+
+                                    if (!safeLinkPath) {
+                                        return (
+                                            <div key={notification.id} className="brutal-panel-soft p-4">
+                                                <p className="display-font text-xl leading-none">{notification.title}</p>
+                                                <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">
+                                                    {notification.body}
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <Link key={notification.id} href={safeLinkPath} className="brutal-panel-soft block p-4">
+                                            <p className="display-font text-xl leading-none">{notification.title}</p>
+                                            <p className="mt-2 text-sm leading-7 text-[var(--tm-muted)]">{notification.body}</p>
+                                        </Link>
+                                    );
+                                })
                             ) : (
                                 <p className="text-sm leading-7 text-[var(--tm-muted)]">Belum ada notifikasi penting.</p>
                             )}
